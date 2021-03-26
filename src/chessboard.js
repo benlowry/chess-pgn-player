@@ -53,7 +53,7 @@ window.setupChessBoard = () => {
   for (const piece of allPieces) {
     const pieceImage = document.createElement('img')
     pieceImage.id = `${piece.type}-${piece.color}-${piece.start}`
-    pieceImage.src = `/themes/${window.themeName}/${piece.image}`
+    pieceImage.src = `themes/${window.themeName}/${piece.image}`
     pieceImage.className = 'chessboard-piece'
     pieceContainer.appendChild(pieceImage)
     pieceImages[`${piece.type}-${piece.color}-${piece.start}`] = pieceImage
