@@ -68,6 +68,7 @@ window.onload = function () {
     if (!window.components || !window.components.length) {
       const allComponents = [
         { name: 'chessboard', setup: window.setupChessBoard, refresh: window.renderChessBoard },
+        { name: 'move-description', setup: window.setupMoveDescription, refresh: window.renderMoveDescription },
         { name: 'playback', setup: window.setupPlayback, refresh: window.refreshPlayback },
         { name: 'header', setup: window.setupHeader, refresh: window.refreshHeader },
         { name: 'tabs', setup: window.setupTabs },

@@ -1,5 +1,5 @@
 let allPieces, cellIndex, pieceImages, pieceContainer, chessboardContainer, chessboardCells, chessboard, arrowContainer
-let moveDescription, headerContainer
+let headerContainer
 let cellSize, halfCellSize, quarterCellSize, eighthCellSize
 
 const pieceNameIndex = {
@@ -11,14 +11,13 @@ const pieceNameIndex = {
   P: 'Pawn'
 }
 
-window.setupChessBoard = () => {
+window.setupChessBoard = (chessboardTable) => {
+  chessboard = chessboardTable || document.querySelector('.chessboard')
+  chessboardContainer = chessboard.parentNode
   allPieces = JSON.parse(window.defaultPieces)
   pieceContainer = document.createElement('div')
   pieceContainer.className = 'chessboard-pieces'
-  chessboardContainer = document.querySelector('.chessboard-container')
   chessboardContainer.appendChild(pieceContainer)
-  chessboard = document.querySelector('.chessboard')
-  moveDescription = document.querySelector('.move-description')
   headerContainer = document.querySelector('.header-container')
   arrowContainer = document.querySelector('.chessboard-arrows')
   // draw chessboard
@@ -125,7 +124,6 @@ window.renderChessBoard = (event) => {
   }
   if (window.turn === -1) {
     headerContainer.style.display = ''
-    moveDescription.style.display = 'none'
     return
   }
   const columns = document.querySelector('.columns')
@@ -136,13 +134,6 @@ window.renderChessBoard = (event) => {
   const move = window.turns[window.turn]
   const sequence = processSequence(move)
   headerContainer.style.display = 'none'
-  moveDescription.style.display = ''
-  moveDescription.innerHTML = describeMove()
-  for (const step of sequence) {
-    if (step.annotation && step.annotation.length) {
-      moveDescription.innerHTML += '. <span class="annotation">' + step.annotation + '</span>'
-    }
-  }
   let step = 0
   function nextSequenceStep () {
     const delay = parseSequenceStep(move, sequence[step], movingPieces)
@@ -347,50 +338,6 @@ function processSequence (move) {
     sequence.push({ type: 'arrow', arrow: 'move' }, { type: 'move', move: segment })
   }
   return sequence
-}
-
-// describe current move
-function describeMove () {
-  if (window.turn > -1) {
-    const move = window.turns[window.turn]
-    let parts = [move.moveNumber + '.']
-    if (move.color === 'w') {
-      parts.push('White')
-    } else {
-      parts.push('Black')
-    }
-    if (move.queenSideCastling) {
-      parts.push('castles')
-    } else if (move.kingSideCastling) {
-      parts.push('castles')
-    } else if (move.coordinateBefore) {
-      parts.push(pieceNameIndex[move.type], 'to', move.coordinateBefore)
-    }
-    if (move.capturing) {
-      parts.push('captures', move.to)
-    } else if (move.to) {
-      parts.push('to', move.to)
-    }
-    if (move.promoted) {
-      parts.push('and promotes', pieceNameIndex[move.type], 'to', move.promoted)
-    }
-    if (move.checkMate) {
-      parts.push('and checkmate')
-    } else if (move.check) {
-      parts.push('and checks')
-    } else if (window.turns === window.pgn.turns && window.turn === window.pgn.turns.length - 1) {
-      parts.push('game ends')
-    }
-    if (move.annotations && move.annotations.length) {
-      // for (const i in move.annotations) {
-      //   move.annotations[i] = formatAnnotation(move.annotations[i])
-      // }
-      if (move.annotations.join('').trim()) {
-        parts = move.annotations
-      }
-    }
-    return parts.join(' ').replace(' .', '.')
-  }
 }
 
 function convertRemToPixels (rem) {
