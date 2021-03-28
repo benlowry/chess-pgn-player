@@ -284,7 +284,6 @@ function processSequence (move) {
   const sequence = []
   for (const segment of move.sequence) {
     if (segment.startsWith('$')) {
-      sequence.push({ type: 'annotation', annotation: nagIndex[segment.nag] })
       continue
     }
     if (segment.startsWith('[%cal ')) {

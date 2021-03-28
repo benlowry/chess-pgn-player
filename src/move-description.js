@@ -1,7 +1,12 @@
-let moveDescription
+let moveDescription, nags
 
 window.setupMoveDescription = () => {
   moveDescription = document.querySelector('.move-description')
+  const nagIndex = document.querySelector('#nag-index')
+  nags = {}
+  for (const option of nagIndex.content.children) {
+    nags[option.value] = option.text
+  }
 }
 
 window.renderMoveDescription = () => {
@@ -16,6 +21,8 @@ window.renderMoveDescription = () => {
   const move = window.turns[window.turn]
   for (const segment of move.sequence) {
     if (segment.startsWith('$')) {
+      const nag = nags[segment]
+      descriptionText.push(`. <span class="annotation">${nag}</span>`)
       continue
     }
     if (segment.startsWith('[%cal ')) {
