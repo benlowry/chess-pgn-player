@@ -2,15 +2,6 @@ let allPieces, cellIndex, pieceImages, pieceContainer, chessboardContainer, ches
 let headerContainer
 let cellSize, halfCellSize, quarterCellSize, eighthCellSize
 
-const pieceNameIndex = {
-  K: 'King',
-  Q: 'Queen',
-  B: 'Bishop',
-  N: 'Knight',
-  R: 'Rook',
-  P: 'Pawn'
-}
-
 window.setupChessBoard = (chessboardTable) => {
   chessboard = chessboardTable || document.querySelector('.chessboard')
   chessboardContainer = chessboard.parentNode

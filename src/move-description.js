@@ -1,5 +1,14 @@
 let moveDescription, nags
 
+const pieceNameIndex = {
+  K: 'King',
+  Q: 'Queen',
+  B: 'Bishop',
+  N: 'Knight',
+  R: 'Rook',
+  P: 'Pawn'
+}
+
 window.setupMoveDescription = () => {
   moveDescription = document.querySelector('.move-description')
   nags = {}
@@ -85,6 +94,5 @@ function describeMove () {
       }
     }
     return parts.join(' ').replace(' .', '.')
-  } else {
   }
 }
