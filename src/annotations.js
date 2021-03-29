@@ -2,29 +2,32 @@
   exports.setupAnnotations = setupAnnotations
   exports.refreshAnnotations = refreshAnnotations
   exports.expandAnnotationSequence = expandAnnotationSequence
-  
-  let moveList
+
+  let moveList, lastRenderedPGN
 
   function setupAnnotations () {
     moveList = document.querySelector('.move-list')
   }
 
-  function refreshAnnotations() {
+  function refreshAnnotations () {
     if (!moveList) {
       return
     }
-    moveList.innerHTML = ''
+    if (lastRenderedPGN !== window.pgn) {
+      lastRenderedPGN = window.pgn
+      moveList.innerHTML = ''
+      moveList.classList.add('timeline1')
+      renderMoves(window.pgn.turns, moveList, 1)
+    }
     if (document.body.offsetHeight > document.body.offsetWidth) {
       moveList.style.height = (document.body.offsetHeight - document.querySelector('.tabs-container').offsetHeight - document.querySelector('.left').offsetHeight) + 'px'
     } else {
       moveList.style.height = (document.body.offsetHeight - document.querySelector('.tabs-container').offsetHeight - 1) + 'px'
     }
-    moveList.classList.add('timeline1')
-    renderMoves(window.pgn.turns, moveList, 1)
   }
 
   function expandSequence (sequence) {
-    let expanded = [' ']
+    const expanded = [' ']
     for (const item of sequence) {
       if (!item.startsWith('{')) {
         expanded.push(item, ' ')
@@ -52,7 +55,7 @@
     return expanded
   }
 
-  function findClosingBracket(index, array) {
+  function findClosingBracket (index, array) {
     let openParantheses = 0
     let openSquare = 0
     let openBrace = 0
@@ -96,9 +99,8 @@
     return finish
   }
 
-
   function expandAnnotationSequence (annotationSequence) {
-    if (annotationSequence == '{}') {
+    if (annotationSequence === '{}') {
       return ['{', '}']
     }
     const lineParts = ['{']
@@ -152,7 +154,7 @@
     if (nextBrace > -1) {
       valid.push({ nextBrace, value: nextBrace })
     }
-    if (nextParanthesis  > -1) {
+    if (nextParanthesis > -1) {
       valid.push({ nextParanthesis, value: nextParanthesis })
     }
     if (nextSquare > -1) {
@@ -167,8 +169,6 @@
     console.log('valid', valid)
     return valid[0].value
   }
-
-
 
   function contractExpandedSequence (sequence) {
     let joined = sequence.join(' ').trim()
@@ -330,7 +330,7 @@
       for (const option of nagCopy.children) {
         nagSelect.appendChild(option)
       }
-      // set up annotation form, annotations are created from text, 
+      // set up annotation form, annotations are created from text,
       // arrow and square highlights and then inserted into the move PGN
       const moveSequence = moveContainer.querySelector('.annotation-sequence')
       moveContainer.annotationSequence = ['{}']
@@ -346,19 +346,28 @@
       const insertArrowButton = moveContainer.querySelector('.insert-text-button')
       insertArrowButton.onclick = insertArrowText
       const arrowChessBoard = moveContainer.querySelector('.annotate-arrow-chessboard')
-      const resetArrowChessBoardButton = moveContainer.querySelector('.reset-squares-button')
+      arrowChessBoard.parentNode.onmousedown = startOrStopHighlightArrow
+      arrowChessBoard.parentNode.onmouseup = startOrStopHighlightArrow
+      arrowChessBoard.colorButtons = arrowColors
+      arrowChessBoard.mouseEnabled = false
+      const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
       resetArrowChessBoardButton.onclick = (event) => {
-        if (event) {
+        if (event && event.preventDefault) {
           event.preventDefault()
         }
-        arrowChessBoard.innerHTML = ''
-        setupMiniChessBoard(arrowChessBoard, moveContainer.move)
-        arrowChessBoard.colorButtons = arrowColors
-        arrowChessBoard.onclick = startOrStopHighlightArrow
-        arrowChessBoard.onmousedown = startHighlightArrow
-        arrowChessBoard.onomuseup = endHighlightArrow
+        const moveContainer = findMoveContainer(event.target)
+        const arrowChessBoard = moveContainer.querySelector('.annotate-arrow-chessboard')
+        const arrows = moveContainer.querySelectorAll('svg')
+        if (arrows && arrows.length) {
+          for (const arrow of arrows) {
+            arrow.parentNode.removeChild(arrow)
+          }
+        }
+        if (!arrowChessBoard.rows.length) {
+          setupMiniChessBoard(arrowChessBoard, moveContainer.move)
+        }
       }
-      resetArrowChessBoardButton.onclick()
+      resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
       // annotation squares
       const squareColors = moveContainer.querySelectorAll('.square-color')
       for (const colorButton of squareColors) {
@@ -367,17 +376,19 @@
       const insertSquareButton = moveContainer.querySelector('.insert-square-button')
       insertSquareButton.onclick = insertSquareText
       const squareChessBoard = moveContainer.querySelector('.annotate-square-chessboard')
+      squareChessBoard.colorButtons = squareColors
+      squareChessBoard.onclick = clickHighlightSquareCell
       const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
       resetSquareChessBoardButton.onclick = (event) => {
-        if (event) {
+        if (event && event.preventDefault) {
           event.preventDefault()
         }
+        const moveContainer = findMoveContainer(event.target)
+        const squareChessBoard = moveContainer.querySelector('.annotate-square-chessboard')
         squareChessBoard.innerHTML = ''
         setupMiniChessBoard(squareChessBoard, moveContainer.move)
-        squareChessBoard.colorButtons = squareColors
-        squareChessBoard.onclick = clickHighlightSquareCell
       }
-      resetSquareChessBoardButton.onclick()
+      resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
       // annotation text
       const insertTextButton = moveContainer.querySelector('.insert-text-button')
       insertTextButton.onclick = insertAnnotationText
@@ -413,22 +424,76 @@
       arrowInput.style.display = 'block'
     }
   }
-  let drawingArrow = false
-  function startHighlightArrow (event) {
-    event.preventDefault()
-    drawingArrow = true
-  }
+  let startingArrow = false
 
   function startOrStopHighlightArrow (event) {
-    if (drawingArrow) {
-      return endHighlightArrow(event)
+    let container = event.target
+    while (!container.classList.contains('mini-chessboard-container')) {
+      container = container.parentNode
     }
-    return startHighlightArrow(event)
+    const offset = getOffset(container)
+    const xPosition = event.clientX - offset.left
+    const yPosition = event.clientY - offset.top
+    const cellWidth = container.offsetWidth / 8
+    const cellX = Math.floor(xPosition / cellWidth)
+    const cellY = Math.floor(yPosition / cellWidth)
+    const row = '87654321'.charAt(cellY)
+    const column = 'abcdefgh'.charAt(cellX)
+    if (startingArrow) {
+      const target = container.querySelector(`.coordinate-${column}${row}`)
+      target.coordinate = `${column}${row}`
+      console.log('adjusted event target', 'coordinate', `${column}${row}`, 'event target', event.target, 'new target', target)
+      endHighlightArrow({ target })
+      startingArrow = false
+    } else {
+      startingArrow = `${column}${row}`
+    }
+  }
+
+  function getOffset (element) {
+    let top = 0
+    let left = 0
+    while (element && !isNaN(element.offsetLeft) && !isNaN(element.offsetTop)) {
+      left += element.offsetLeft - element.scrollLeft
+      top += element.offsetTop - element.scrollTop
+      element = element.offsetParent
+    }
+    return { top, left }
   }
 
   function endHighlightArrow (event) {
-    event.preventDefault()
-    drawingArrow = false
+    console.log('end highlight arrow', startingArrow, event.target)
+    if (!startingArrow) {
+      return
+    }
+    let table = event.target
+    while (table.tagName !== 'TABLE') {
+      table = table.parentNode
+    }
+    if (event.target.tagName !== 'TD' && event.target.parentNode.tagName !== 'TD') {
+      return
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const chessboard = moveContainer.querySelector('.annotate-arrow-chessboard')
+    const colors = ['red', 'green', 'blue', 'yellow']
+    let i = -1
+    let color
+    const colorButtons = moveContainer.querySelectorAll('.arrow-color')
+    console.log('color buttons', colorButtons)
+    for (const colorButton of colorButtons) {
+      i++
+      if (!colorButton.firstChild.classList.contains('fa-dot-circle')) {
+        continue
+      }
+      color = colors[i]
+      break
+    }
+    const arrow = drawArrow(startingArrow, event.target.coordinate, chessboard)
+    arrow.classList.add('chessboard-arrow')
+    arrow.classList.add(`${color}-arrow`)
+    arrow.style.width = chessboard.offsetWidth
+    arrow.style.height = chessboard.offsetHeight
+    arrow.parentNode.innerHTML += ''
   }
 
   function clickHighlightSquareCell (event) {
@@ -441,13 +506,11 @@
       return
     }
     const cell = event.target.tagName === 'TD' ? event.target : event.target.parentNode
-    const colors = ['red-square', 'green-square', 'blue-square', 'yellow-square' ]
+    const colors = ['red-square', 'green-square', 'blue-square', 'yellow-square']
     let i = -1
-    for (const colorButton of table.colorButtons) {
+    const colorButtons = table.parentNode.firstChild.children
+    for (const colorButton of colorButtons) {
       i++
-      if (!colorButton.firstChild) {
-        throw new Error('how is this possible...')
-      }
       if (!colorButton.firstChild.classList.contains('fa-dot-circle')) {
         continue
       }
@@ -559,12 +622,7 @@
     const position = findElementChildIndex(selectedPosition)
     const expandedSequence = expandSequence(moveContainer.annotationSequence)
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
-    console.log('insert text', annotationText, 'insert position', position)
-    console.log('sequence', moveContainer.annotationSequence)
-    console.log('expanded sequence before insertion', expandSequence(moveContainer.annotationSequence))
-    console.log('expanded sequence after insertion', expandedSequence)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
-    console.log('contracted sequence', moveContainer.annotationSequence)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
     moveSequence.children[moveSequence.children.length - 2].classList.add('selected-position')
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
@@ -592,11 +650,11 @@
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.add('fa-dot-circle')
     const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
-    resetSquareChessBoardButton.onclick()
+    resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
     return cancelAndCloseAnnotationForm(event)
   }
 
-  function insertArrowText(event) {
+  function insertArrowText (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
     const annotationText = '[%csl Ra1,b1,b3]'
@@ -611,8 +669,66 @@
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.add('fa-dot-circle')
     const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
-    resetArrowChessBoardButton.onclick()
+    resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
     return cancelAndCloseAnnotationForm(event)
+  }
+
+  function drawArrow (firstCoordinate, lastCoordinate, chessboard) {
+    const previousValues = {}
+    const moveSteps = [firstCoordinate, lastCoordinate]
+    let svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    chessboard.parentNode.appendChild(svg)
+    svg = chessboard.parentNode.lastChild
+    const sixteenthCellSize = chessboard.offsetWidth / 8 / 8 / 2
+    const eighthCellSize = sixteenthCellSize * 2
+    const quarterCellSize = eighthCellSize * 2
+    const halfCellSize = quarterCellSize * 2
+    svg.style.strokeWidth = (sixteenthCellSize * 1.5) + 'px'
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+    svg.appendChild(defs)
+    const markerWidth = eighthCellSize
+    const markerHeight = eighthCellSize
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker')
+    marker.id = `arrow-highlight-${firstCoordinate}-${lastCoordinate}`
+    marker.setAttributeNS(null, 'markerWidth', markerWidth)
+    marker.setAttributeNS(null, 'markerHeight', markerHeight)
+    marker.setAttributeNS(null, 'refX', markerWidth * 0.8)
+    marker.setAttributeNS(null, 'refY', markerHeight / 2)
+    marker.setAttributeNS(null, 'orient', 'auto')
+    defs.appendChild(marker)
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+    polygon.setAttributeNS(null, 'points', `0,0 ${markerWidth},${markerHeight / 2} 0,${markerHeight}`)
+    polygon.style.strokeWidth = 0
+    marker.appendChild(polygon)
+    console.log('move steps', moveSteps)
+    for (const i in moveSteps) {
+      const stepCoordinate = moveSteps[i]
+      const cell = chessboard.querySelector(`.coordinate-${stepCoordinate}`)
+      if (!cell) {
+        console.log('could not find cell for coordinate', stepCoordinate, 'in chessboard', chessboard)
+      }
+      if (stepCoordinate === firstCoordinate) {
+        const xPosition = cell.offsetLeft + halfCellSize
+        const yPosition = cell.offsetTop + halfCellSize
+        previousValues.xPosition = xPosition
+        previousValues.yPosition = yPosition
+        continue
+      }
+      const xPosition = cell.offsetLeft + halfCellSize
+      const yPosition = cell.offsetTop + halfCellSize
+      const line = document.createElement('line')
+      if (stepCoordinate === lastCoordinate) {
+        line.setAttributeNS(null, 'marker-end', `url(#arrow-highlight-${firstCoordinate}-${lastCoordinate})`)
+      }
+      line.setAttributeNS(null, 'x1', previousValues.xPosition)
+      line.setAttributeNS(null, 'y1', previousValues.yPosition)
+      line.setAttributeNS(null, 'x2', xPosition)
+      line.setAttributeNS(null, 'y2', yPosition)
+      svg.appendChild(line)
+      previousValues.xPosition = xPosition
+      previousValues.yPosition = yPosition
+    }
+    return svg
   }
 
   function setupMiniChessBoard (table, move) {
@@ -624,7 +740,8 @@
       white = !white
       for (const c of columns) {
         const cell = row.insertCell(row.cells.length)
-        cell.className = 'chessboard-square ' + (white ? 'white-square' : 'black-square')
+        cell.className = `coordinate-${c}${r} chessboard-square ` + (white ? 'white-square' : 'black-square')
+        cell.coordinate = `${c}${r}`
         white = !white
         if (r === '1') {
           cell.innerHTML = '<sub>' + c + '</sub>'
@@ -648,7 +765,6 @@
 
   function cancelAndCloseAnnotationForm (event) {
     event.preventDefault()
-    console.log('cancelAndCloseAnnotationForm', event.target.className, event.target)
     const moveContainer = findMoveContainer(event.target)
     const typeButtons = moveContainer.querySelector('.annotation-button-container')
     typeButtons.style.display = 'block'
@@ -659,14 +775,9 @@
     const squareInput = moveContainer.querySelector('.square-input')
     squareInput.style.display = 'none'
     const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
-    if (resetArrowChessBoardButton && resetArrowChessBoardButton.onclick) {
-      resetArrowChessBoardButton.onclick()
-    }
+    resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
     const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
-    if (resetSquareChessBoardButton && resetSquareChessBoardButton.onclick) {
-      resetSquareChessBoardButton.onclick()
-    }
-    console.log('now the only thing showing should be buttons', arrowInput)
+    resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
   }
 
   function cancelAndCloseForm (event) {
