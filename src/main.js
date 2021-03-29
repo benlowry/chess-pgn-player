@@ -72,7 +72,7 @@ window.onload = function () {
         { name: 'playback', setup: window.setupPlayback, refresh: window.refreshPlayback },
         { name: 'header', setup: window.setupHeader, refresh: window.refreshHeader },
         { name: 'tabs', setup: window.setupTabs },
-        { name: 'annotations', setup: window.setupAnnotations, refresh: window.window.refreshAnnotations },
+        { name: 'annotations', setup: window.annotations.setupAnnotations, refresh: window.annotations.refreshAnnotations },
         { name: 'pgn', setup: window.setupPGN, refresh: window.refreshPGN },
         { name: 'tags', setup: window.setupTags }
       ]

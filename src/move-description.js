@@ -2,8 +2,8 @@ let moveDescription, nags
 
 window.setupMoveDescription = () => {
   moveDescription = document.querySelector('.move-description')
-  const nagIndex = document.querySelector('#nag-index')
   nags = {}
+  const nagIndex = document.querySelector('#nag-index')
   for (const option of nagIndex.content.children) {
     nags[option.value] = option.text
   }
