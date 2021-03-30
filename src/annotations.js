@@ -38,20 +38,6 @@
         expanded.push(part, ' ')
       }
     }
-    console.log('expanded', sequence, expanded)
-    // const splice = []
-    // for (const i in expanded) {
-    //   const int = parseInt(i, 10)
-    //   if (int < expanded.length - 1) {
-    //     const next = int + 1
-    //     if (expanded[i] === ' ' && expanded[next] === ' ') {
-    //       splice.unshift(i)
-    //     }
-    //   }
-    // }
-    // for (const i of splice) {
-    //   expanded = expanded.splice(i, 1)
-    // }
     return expanded
   }
 
@@ -105,7 +91,6 @@
     }
     const lineParts = ['{']
     let copy = annotationSequence.substring(1, annotationSequence.length - 1)
-    console.log('copy', copy)
     while (copy.length) {
       const firstCharacter = copy.charAt(0)
       if (firstCharacter === '$') {
@@ -166,7 +151,6 @@
     valid.sort((a, b) => {
       return a.value > b.value ? 1 : -1
     })
-    console.log('valid', valid)
     return valid[0].value
   }
 
@@ -244,7 +228,6 @@
   function renderSequence (sequence, container, insideSpacingOnly) {
     container.innerHTML = ''
     const expandedSequence = expandSequence(sequence)
-    console.log('rendering sequence', sequence, expandedSequence)
     if (insideSpacingOnly) {
       expandedSequence.pop()
       expandedSequence.shift()
@@ -406,7 +389,6 @@
 
   function showAnnotationTypeForm (event) {
     event.preventDefault()
-    console.log('show annotationt ype form', event.target.className)
     const moveContainer = findMoveContainer(event.target)
     const typeButtons = moveContainer.querySelector('.annotation-button-container')
     typeButtons.style.display = 'none'
@@ -442,7 +424,6 @@
     if (startingArrow) {
       const target = container.querySelector(`.coordinate-${column}${row}`)
       target.coordinate = `${column}${row}`
-      console.log('adjusted event target', 'coordinate', `${column}${row}`, 'event target', event.target, 'new target', target)
       endHighlightArrow({ target })
       startingArrow = false
     } else {
@@ -462,7 +443,6 @@
   }
 
   function endHighlightArrow (event) {
-    console.log('end highlight arrow', startingArrow, event.target)
     if (!startingArrow) {
       return
     }
@@ -479,7 +459,6 @@
     let i = -1
     let color
     const colorButtons = moveContainer.querySelectorAll('.arrow-color')
-    console.log('color buttons', colorButtons)
     for (const colorButton of colorButtons) {
       i++
       if (!colorButton.firstChild.classList.contains('fa-dot-circle')) {
@@ -546,7 +525,6 @@
     if (event && event.preventDefault) {
       event.preventDefault()
     }
-    console.log('now show annotation form')
     const moveContainer = findMoveContainer(event.target)
     const buttons = moveContainer.querySelectorAll('.annotation-tab-button')
     for (const button of buttons) {
@@ -639,12 +617,7 @@
     const position = findElementChildIndex(selectedPosition)
     const expandedSequence = expandSequence(moveContainer.annotationSequence)
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
-    console.log('insert square', annotationText, 'insert position', position)
-    console.log('sequence', moveContainer.annotationSequence)
-    console.log('expanded sequence before insertion', expandSequence(moveContainer.annotationSequence))
-    console.log('expanded sequence after insertion', expandedSequence)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
-    console.log('contracted sequence', moveContainer.annotationSequence)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
     moveSequence.children[moveSequence.children.length - 2].classList.add('selected-position')
     moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
@@ -700,13 +673,9 @@
     polygon.setAttributeNS(null, 'points', `0,0 ${markerWidth},${markerHeight / 2} 0,${markerHeight}`)
     polygon.style.strokeWidth = 0
     marker.appendChild(polygon)
-    console.log('move steps', moveSteps)
     for (const i in moveSteps) {
       const stepCoordinate = moveSteps[i]
       const cell = chessboard.querySelector(`.coordinate-${stepCoordinate}`)
-      if (!cell) {
-        console.log('could not find cell for coordinate', stepCoordinate, 'in chessboard', chessboard)
-      }
       if (stepCoordinate === firstCoordinate) {
         const xPosition = cell.offsetLeft + halfCellSize
         const yPosition = cell.offsetTop + halfCellSize
