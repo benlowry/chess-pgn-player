@@ -244,6 +244,7 @@
       }
       li.className = 'move-sequence-item'
       if (item.length > 30) {
+        li.title = item
         li.innerHTML = item.substring(0, 20) + '...'
       } else {
         li.innerHTML = item
