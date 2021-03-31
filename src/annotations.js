@@ -326,6 +326,7 @@
       const moveSequence = moveContainer.querySelector('.annotation-sequence')
       moveContainer.annotationSequence = ['{}']
       renderSequence(moveContainer.annotationSequence, moveSequence, true)
+      moveSequence.children[1].onclick({ target: moveSequence.children[1].firstChild })
       // annotation arrows
       const arrowColors = moveContainer.querySelectorAll('.arrow-color')
       for (const colorButton of arrowColors) {
