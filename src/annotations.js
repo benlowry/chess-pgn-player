@@ -732,9 +732,6 @@
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
-    moveSequence.children[moveSequence.children.length - 2].classList.add('selected-position')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.add('fa-dot-circle')
     return cancelAndCloseAnnotationForm(event)
   }
 
@@ -820,9 +817,6 @@
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
-    moveSequence.children[moveSequence.children.length - 2].classList.add('selected-position')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.add('fa-dot-circle')
     const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
     resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
     return cancelAndCloseAnnotationForm(event)
