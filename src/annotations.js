@@ -663,21 +663,18 @@
   function commitAnnotation (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
-    const annotation = moveContainer.annotationSequence.join(' ')
-    console.log('committing annotation', annotation, moveContainer)
+    let annotation = moveContainer.annotationSequence.join(' ')
     const selectedPosition = moveContainer.querySelector('.selected-position')
     if (!selectedPosition) {
-      return console.log('could not find elected position', event.target, moveContainer)
+      return
     }
     const position = findElementChildIndex(selectedPosition)
-    const move = moveContainer.move
-    const expandedSequence = expandSequence(move.sequence)
-    console.log('previous sequence', expandedSequence)
+    const expandedSequence = expandSequence(moveContainer.move.sequence)
+    if (expandedSequence.indexOf('{') > -1 && expandedSequence.indexOf('{') < position - 1 && expandedSequence.indexOf('}') > position - 1) {
+      annotation = annotation.slice(1, annotation.length - 1)
+    }
     expandedSequence.splice(position || 0, 0, ' ', annotation)
-    move.sequence = contractExpandedSequence(expandedSequence)
-    console.log('newly expanded sequence', expandSequence)
-    console.log('contracted expanded sequence', contractExpandedSequence(expandedSequence))
-
+    moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
     const addAnnotationButton = document.createElement('button')
     addAnnotationButton.className = 'button move-option-button'
     addAnnotationButton.innerHTML = '<i class="fas fa-edit"></i>'
@@ -687,7 +684,7 @@
     showSpacing.className = 'move-options-item'
     showSpacing.appendChild(addAnnotationButton)
     const sequence = selectedPosition.parentNode
-    renderSequence(move.sequence, sequence)
+    renderSequence(moveContainer.move.sequence, sequence)
     sequence.insertBefore(showSpacing, sequence.firstChild)
     return cancelAndCloseForm(event)
   }
