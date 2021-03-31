@@ -250,21 +250,28 @@
         li.innerHTML = item
       }
     }
+    return container
   }
 
   function selectPosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
-    const positionList = event.target.parentNode.parentNode
+    let positionList = event.target
+    while (positionList.tagName !== 'UL') {
+      positionList = positionList.parentNode
+    }
     if (!positionList.classList.contains('move-sequence')) {
       return
     }
     for (const child of positionList.children) {
       if (!child.classList.contains('sequence-position-item')) {
+        if (child === event.target) {
+          return
+        }
         continue
       }
-      if (child.firstChild === event.target) {
+      if (child.firstChild === event.target || child === event.target) {
         child.classList.add('selected-position')
         child.firstChild.firstChild.classList.remove('fa-circle')
         child.firstChild.firstChild.classList.add('fa-dot-circle')
@@ -319,9 +326,6 @@
       const moveSequence = moveContainer.querySelector('.annotation-sequence')
       moveContainer.annotationSequence = ['{}']
       renderSequence(moveContainer.annotationSequence, moveSequence, true)
-      moveSequence.children[1].classList.add('selected-position')
-      moveSequence.children[1].firstChild.firstChild.classList.remove('fa-circle')
-      moveSequence.children[1].firstChild.firstChild.classList.add('fa-dot-circle')
       // annotation arrows
       const arrowColors = moveContainer.querySelectorAll('.arrow-color')
       for (const colorButton of arrowColors) {
@@ -779,9 +783,6 @@
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
-    moveSequence.children[moveSequence.children.length - 2].classList.add('selected-position')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.remove('fa-circle')
-    moveSequence.children[moveSequence.children.length - 2].firstChild.firstChild.classList.add('fa-dot-circle')
     const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
     resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
     return cancelAndCloseAnnotationForm(event)
@@ -947,13 +948,16 @@
     resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
     const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
     resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
-    const forms = moveContainer.querySelector('.annotation-forms')
-    const selectedPosition = forms.querySelector('.selected-position')
-    if (selectedPosition) {
-      selectedPosition.classList.remove('selected-position')
-      selectedPosition.firstChild.firstChild.classList.remove('fa-dot-circle')
-      selectedPosition.firstChild.firstChild.classList.add('fa-circle')
+    const list = moveContainer.querySelector('.annotation-sequence')
+    for (const child of list.children) {
+      if (!child.classList.contains('sequence-position-item')) {
+        continue
+      }
+      child.classList.remove('selected-position')
+      child.firstChild.firstChild.classList.add('fa-circle')
+      child.firstChild.firstChild.classList.remove('fa-dot-circle')
     }
+    list.children[list.children.length - 2].onclick({ target: list.children[list.children.length - 2].firstChild })
   }
 
   function cancelAndCloseForm (event) {
@@ -968,12 +972,6 @@
     const forms = moveContainer.querySelector('.annotation-forms')
     if (forms) {
       forms.parentNode.removeChild(forms)
-    }
-    const selectedPosition = moveContainer.querySelector('.selected-position')
-    if (selectedPosition) {
-      selectedPosition.classList.remove('selected-position')
-      selectedPosition.firstChild.firstChild.classList.remove('fa-dot-circle')
-      selectedPosition.firstChild.firstChild.classList.add('fa-circle')
     }
   }
 
