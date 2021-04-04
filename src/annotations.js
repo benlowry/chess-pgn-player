@@ -7,6 +7,9 @@
 
   function setupAnnotations () {
     moveList = document.querySelector('.move-list')
+    document.onmousedown = startHighlightArrow
+    document.onmousemove = previewHighlightArrow
+    document.onmouseup = stopHighlightArrow
   }
 
   function refreshAnnotations () {
@@ -26,10 +29,10 @@
     }
   }
 
-  function expandSequence (sequence) {
+  function expandSequence (sequence, expandAnnotations) {
     const expanded = [' ']
     for (const item of sequence) {
-      if (!item.startsWith('{')) {
+      if (!expandAnnotations || !item.startsWith('{')) {
         expanded.push(item, ' ')
         continue
       }
@@ -177,19 +180,11 @@
       li.moveIndex = move.move
       li.move = move
       li.className = 'move-list-item'
-      const addAnnotationButton = document.createElement('button')
-      addAnnotationButton.className = 'button move-option-button'
-      addAnnotationButton.innerHTML = '<i class="fas fa-edit"></i>'
-      addAnnotationButton.annotateForm = 'annotation'
-      addAnnotationButton.onclick = showEditOptions
-      const showSpacing = document.createElement('li')
-      showSpacing.className = 'move-options-item'
-      showSpacing.appendChild(addAnnotationButton)
       const sequence = document.createElement('ul')
       sequence.className = 'move-sequence'
       renderSequence(move.sequence, sequence)
-      sequence.insertBefore(showSpacing, sequence.firstChild)
       li.appendChild(sequence)
+      resetMoveContainerButtons(li)
       if (move.color === 'w') {
         li.classList.add('white-move-link')
       } else {
@@ -227,25 +222,54 @@
 
   function renderSequence (sequence, container, insideSpacingOnly) {
     container.innerHTML = ''
-    const expandedSequence = expandSequence(sequence)
+    const expandedSequence = expandSequence(sequence, !!insideSpacingOnly)
     if (insideSpacingOnly) {
       expandedSequence.pop()
       expandedSequence.shift()
     }
+    const renderingAnnotation = container.classList.contains('annotation-sequence')
     for (const i in expandedSequence) {
       const item = expandedSequence[i]
       const li = document.createElement('li')
-      li.onclick = selectPosition
+      const nag = item.startsWith('$')
+      const annotation = item.startsWith('{')
+      const space = item === ' '
+      if (nag || annotation || space || renderingAnnotation) {
+        if (renderingAnnotation) {
+          if (item !== '{' && item !== '}') {
+            li.onmousedown = selectAnnotationSequencePosition
+            li.position = i
+            li.sequence = expandedSequence
+          } else {
+            li.style.pointerEvents = 'none'
+            li.mouseEnabled = false
+          }
+        } else {
+          li.onmousedown = selectMoveSequencePosition
+          li.position = i
+          li.sequence = expandedSequence
+        }
+      } else {
+        li.style.pointerEvents = 'none'
+        li.mouseEnabled = false
+      }
       container.appendChild(li)
       if (item === ' ') {
         li.className = 'sequence-position-item'
         li.innerHTML = '<button class="button move-location-button"><i class="fas fa-circle"></i></button>'
+        li.firstChild.mouseEnabled = false
         continue
       }
       li.className = 'move-sequence-item'
       if (item.length > 30) {
         li.title = item
         li.innerHTML = item.substring(0, 20) + '...'
+        if (item.charAt(0) === '{') {
+          li.innerHTML += '}'
+        }
+        if (item.charAt(0) === '(') {
+          li.innerHTML += ')'
+        }
       } else {
         li.innerHTML = item
       }
@@ -253,21 +277,27 @@
     return container
   }
 
-  function selectPosition (event) {
+  function selectMoveSequencePosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
-    let positionList = event.target
-    while (positionList.tagName !== 'UL') {
-      positionList = positionList.parentNode
-    }
-    if (!positionList.classList.contains('move-sequence')) {
-      return
-    }
+    const moveContainer = findMoveContainer(event.target)
+    const positionList = moveContainer.querySelector('.move-sequence')
+    let editing
     for (const child of positionList.children) {
+      if (child.classList.contains('edit-position')) {
+        child.classList.remove('edit-position')
+      }
+      if (child.classList.contains('selected-position')) {
+        child.classList.remove('selected-position')
+      }
       if (!child.classList.contains('sequence-position-item')) {
         if (child === event.target) {
-          return
+          if (child.innerHTML === '{' || child.innerHTML === '}') {
+            continue
+          }
+          editMoveSequencePosition(event)
+          editing = true
         }
         continue
       }
@@ -276,142 +306,384 @@
         child.firstChild.firstChild.classList.remove('fa-circle')
         child.firstChild.firstChild.classList.add('fa-dot-circle')
       } else {
-        child.classList.remove('selected-position')
         child.firstChild.firstChild.classList.add('fa-circle')
         child.firstChild.firstChild.classList.remove('fa-dot-circle')
       }
     }
-    if (positionList.classList.contains('annotation-sequence')) {
+    if (editing) {
       return
     }
-    const moveContainer = positionList.parentNode
-    let foundForms = false
-    for (const child of moveContainer.children) {
-      if (child.classList.contains('annotation-forms')) {
-        foundForms = true
-        break
-      }
-    }
-    if (!foundForms) {
-      const annotationTabsTemplate = document.querySelector('#annotation-tabs')
-      const annotationTabs = document.importNode(annotationTabsTemplate.content, true)
-      moveContainer.insertBefore(annotationTabs, positionList.nextSibling)
-      // tabs for different types of insertion
-      const tabButtons = moveContainer.querySelectorAll('.annotation-tab-button')
-      for (const button of tabButtons) {
-        button.onclick = showAnnotationTab
-      }
-      showAnnotationTab({ target: tabButtons[0] })
-      // inserting annotation
-      const insertAnnotationButton = moveContainer.querySelector('.add-annotation-button')
-      insertAnnotationButton.onclick = commitAnnotation
-      // tabs for different annotation segments
-      const addTextButton = moveContainer.querySelector('.add-text-button')
-      addTextButton.onclick = showAnnotationTypeForm
-      const addSquareButton = moveContainer.querySelector('.add-square-button')
-      addSquareButton.onclick = showAnnotationTypeForm
-      const addArrowButton = moveContainer.querySelector('.add-arrow-button')
-      addArrowButton.onclick = showAnnotationTypeForm
-      // set up nag form, nags are inserted directly into the move PGN
-      const commitNagButton = moveContainer.querySelector('.add-nag-button')
-      commitNagButton.onclick = commitNag
-      const nagSelect = moveContainer.querySelector('.nag-select')
-      const nagIndex = document.querySelector('#nag-index')
-      const nagCopy = document.importNode(nagIndex.content, true)
-      for (const option of nagCopy.children) {
-        nagSelect.appendChild(option)
-      }
-      // set up annotation form, annotations are created from text,
-      // arrow and square highlights and then inserted into the move PGN
-      const moveSequence = moveContainer.querySelector('.annotation-sequence')
-      moveContainer.annotationSequence = ['{}']
-      renderSequence(moveContainer.annotationSequence, moveSequence, true)
-      moveSequence.children[1].onclick({ target: moveSequence.children[1].firstChild })
-      // annotation arrows
-      const arrowColors = moveContainer.querySelectorAll('.arrow-color')
-      for (const colorButton of arrowColors) {
-        colorButton.onclick = selectColor
-      }
-      const insertArrowButton = moveContainer.querySelector('.insert-arrow-button')
-      insertArrowButton.onclick = insertArrowText
-      const arrowChessBoard = moveContainer.querySelector('.annotate-arrow-chessboard')
-      const arrowChessBoardHitArea = moveContainer.querySelector('.annotate-arrow-hitarea')
-      // todo: these should be moveContainer-specific
-      document.onmousedown = startHighlightArrow
-      document.onmousemove = previewHighlightArrow
-      document.onmouseup = stopHighlightArrow
-      arrowChessBoard.colorButtons = arrowColors
-      arrowChessBoard.mouseEnabled = false
-      const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
-      resetArrowChessBoardButton.onclick = (event) => {
-        if (event && event.preventDefault) {
-          event.preventDefault()
-        }
-        const moveContainer = findMoveContainer(event.target)
-        const arrowChessBoard = moveContainer.querySelector('.annotate-arrow-chessboard')
-        const pendingList = moveContainer.querySelector('.pending-arrow-list')
-        pendingList.innerHTML = ''
-        const arrows = moveContainer.querySelector('.highlight-arrow-container')
-        arrows.innerHTML = ''
-        if (!arrowChessBoard.rows.length) {
-          setupMiniChessBoard(arrowChessBoard, arrowChessBoardHitArea, moveContainer.move)
-        }
-      }
-      resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
-      // annotation squares
-      const squareColors = moveContainer.querySelectorAll('.square-color')
-      for (const colorButton of squareColors) {
-        colorButton.onclick = selectColor
-      }
-      const insertSquareButton = moveContainer.querySelector('.insert-square-button')
-      insertSquareButton.onclick = insertSquareText
-      const squareChessBoard = moveContainer.querySelector('.annotate-square-chessboard')
-      squareChessBoard.colorButtons = squareColors
-      squareChessBoard.onclick = clickHighlightSquareCell
-      const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
-      resetSquareChessBoardButton.onclick = (event) => {
-        if (event && event.preventDefault) {
-          event.preventDefault()
-        }
-        const moveContainer = findMoveContainer(event.target)
-        const squareChessBoard = moveContainer.querySelector('.annotate-square-chessboard')
-        squareChessBoard.innerHTML = ''
-        setupMiniChessBoard(squareChessBoard, null, moveContainer.move)
-      }
-      resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
-      // annotation text
-      const insertTextButton = moveContainer.querySelector('.insert-text-button')
-      insertTextButton.onclick = insertAnnotationText
-      // cancel buttons
-      const cancelButtons = Array.from(moveContainer.querySelectorAll('.cancel-button'))
-      for (const button of cancelButtons) {
-        if (button.classList.contains('cancel-annotation-button')) {
-          button.onclick = cancelAndCloseAnnotationForm
-        } else {
-          button.onclick = cancelAndCloseForm
-        }
-      }
+    const newForm = makeInsertionTypeSelector(moveContainer)
+    clearContents(moveContainer)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    if (moveSequence.nextSibling) {
+      moveContainer.insertBefore(newForm, moveSequence.nextSibling)
+    } else {
+      moveContainer.appendChild(newForm)
     }
   }
 
-  function showAnnotationTypeForm (event) {
-    event.preventDefault()
-    const moveContainer = findMoveContainer(event.target)
-    const typeButtons = moveContainer.querySelector('.annotation-button-container')
-    typeButtons.style.display = 'none'
-    const textInput = moveContainer.querySelector('.text-input')
-    textInput.style.display = 'none'
-    const arrowInput = moveContainer.querySelector('.arrow-input')
-    arrowInput.style.display = 'none'
-    const squareInput = moveContainer.querySelector('.square-input')
-    squareInput.style.diplay = 'none'
-    if (event.target.classList.contains('add-text-button')) {
-      textInput.style.display = 'block'
-    } else if (event.target.classList.contains('add-square-button')) {
-      squareInput.style.display = 'block'
-    } else {
-      arrowInput.style.display = 'block'
+  function editMoveSequencePosition(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
     }
+    const moveContainer = findMoveContainer(event.target)
+    expandMoveContainer(moveContainer)
+    const sequence = moveContainer.querySelector('.move-sequence')
+    const position = findElementChildIndex(event.target) - 1
+    for (const child of sequence.children) {
+      if (child === event.target) {
+        child.classList.add('edit-position')
+      } else if (child.classList.contains('edit-position')) {
+        child.classList.remove('edit-position')
+      }
+    }
+    const expandedSequence = expandSequence(moveContainer.move.sequence)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const editing = expandedSequence[position]
+    // editing a nag
+    if (event.target.innerHTML.startsWith('$')) {
+      clearContents(moveContainer)
+      const newForm = makeNagForm('#edit-nag-form')
+      const nagSelect = newForm.querySelector('.nag-select')
+      nagSelect.selectedIndex = parseInt(editing.substring(1), 10)
+      const cancelButton = newForm.querySelector('.cancel-button')
+      cancelButton.onclick = (event) => {
+        event.preventDefault()
+        const moveContainer = findMoveContainer(event.target)
+        unexpandMoveContainer(moveContainer)
+        unselectMoveSequencePosition(moveContainer)
+        clearContents(moveContainer)
+      }
+      const existingForm = moveContainer.querySelector('.annotation-form')
+      if (existingForm) {
+        existingForm.parentNode.removeChild(existingForm)
+      }
+      const formSelector = moveContainer.querySelector('.insertion-form-selector')
+      if (formSelector) {
+        formSelector.parentNode.removeChild(formSelector)
+      }
+      if (moveSequence.nextSibling) {
+        moveContainer.insertBefore(newForm, moveSequence.nextSibling)
+      } else {
+        moveContainer.appendChild(newForm)
+      }
+      return
+    }
+    // editing an annotation
+    if (event.target.innerHTML.startsWith('{')) {
+      clearContents(moveContainer)
+      const newForm = makeAnnotationBuilder(moveContainer, window.parser.tokenizeLine(editing))
+      const cancelButton = newForm.querySelector('.cancel-button')
+      cancelButton.onclick = (event) => {
+        event.preventDefault()
+        const moveContainer = findMoveContainer(event.target)
+        unexpandMoveContainer(moveContainer)
+        unselectMoveSequencePosition(moveContainer)
+        clearContents(moveContainer)
+      }
+      const existingForm = moveContainer.querySelector('.annotation-form')
+      if (existingForm) {
+        existingForm.parentNode.removeChild(existingForm)
+      }
+      const formSelector = moveContainer.querySelector('.insertion-form-selector')
+      if (formSelector) {
+        formSelector.parentNode.removeChild(formSelector)
+      }
+      if (moveSequence.nextSibling) {
+        moveContainer.insertBefore(newForm, moveSequence.nextSibling)
+      } else {
+        moveContainer.appendChild(newForm)
+      }
+      return
+    }
+  }
+
+  function selectAnnotationSequencePosition(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const positionList = moveContainer.querySelector('.annotation-sequence')
+    let editing
+    for (const child of positionList.children) {
+      if (child.classList.contains('edit-position')) {
+        child.classList.remove('edit-position')
+      }
+      if (child.classList.contains('selected-position')) {
+        child.classList.remove('selected-position')
+      }
+      if (!child.classList.contains('sequence-position-item')) {
+        if (child === event.target) {
+          if (child.innerHTML === '{' || child.innerHTML === '}') {
+            continue
+          }
+          editAnnotationSequencePosition(event)
+          editing = true
+        }
+        continue
+      }
+      if (child.firstChild === event.target || child === event.target) {
+        child.classList.add('selected-position')
+        child.firstChild.firstChild.classList.remove('fa-circle')
+        child.firstChild.firstChild.classList.add('fa-dot-circle')
+      } else {
+        child.firstChild.firstChild.classList.add('fa-circle')
+        child.firstChild.firstChild.classList.remove('fa-dot-circle')
+      }
+    }
+    if (editing) {
+      return
+    }
+    const newForm = makeAnnotationTypeSelector(moveContainer)
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    formContainer.innerHTML = ''
+    formContainer.appendChild(newForm)
+  }
+
+  function editAnnotationSequencePosition(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const sequence = moveContainer.querySelector('.annotation-sequence')
+    const position = findElementChildIndex(event.target)
+    for (const child of sequence.children) {
+      if (child === event.target) {
+        child.classList.add('edit-position')
+      } else if (child.classList.contains('edit-position')) {
+        child.classList.remove('edit-position')
+      }
+    }
+    const expandedSequence = expandSequence(moveContainer.annotationSequence, true)
+    expandedSequence.pop()
+    expandedSequence.shift()
+    const editing = expandedSequence[position]
+    if (event.target.innerHTML.startsWith('[%cal')) {
+      clearContents(moveContainer)
+      const newForm = makeAnnotationArrowForm(moveContainer, '#edit-arrow-annotation-form')
+      const cancelButton = newForm.querySelector('.cancel-button')
+      cancelButton.onclick = (event) => {
+        event.preventDefault()
+        const moveContainer = findMoveContainer(event.target)
+        unexpandMoveContainer(moveContainer)
+        unselectMoveSequencePosition(moveContainer)
+        clearContents(moveContainer)
+      }
+      const formContainer = moveContainer.querySelector('.annotation-form-container')
+      formContainer.innerHTML = ''
+      return formContainer.appendChild(newForm)
+    }
+    if (event.target.innerHTML.startsWith('[%csl')) {
+      clearContents(moveContainer)
+      const newForm = makeAnnotationSquareForm(moveContainer, '#edit-square-annotation-form')
+      const cancelButton = newForm.querySelector('.cancel-button')
+      cancelButton.onclick = (event) => {
+        event.preventDefault()
+        const moveContainer = findMoveContainer(event.target)
+        unexpandMoveContainer(moveContainer)
+        unselectMoveSequencePosition(moveContainer)
+        clearContents(moveContainer)
+      }
+      const formContainer = moveContainer.querySelector('.annotation-form-container')
+      formContainer.innerHTML = ''
+      return formContainer.appendChild(newForm)
+    }
+    // a text block
+    const newForm = makeAnnotationTextForm(moveContainer, '#edit-text-annotation-form')
+    const textarea = newForm.querySelector('.annotation-text')
+    textarea.value = editing
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.onclick = (event) => {
+      event.preventDefault()
+      const moveContainer = findMoveContainer(event.target)
+      unexpandMoveContainer(moveContainer)
+      unselectMoveSequencePosition(moveContainer)
+      clearContents(moveContainer)
+    }
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    formContainer.innerHTML = ''
+    formContainer.appendChild(newForm)
+  }
+
+  function switchForm (event) {
+    const button = event.target
+    const formCreator = button.formCreator
+    const moveContainer = findMoveContainer(event.target)
+    if (button.formContainer) {
+      button.formContainer.innerHTML = ''
+    } else {
+      clearContents(moveContainer)
+    }
+    const newForm = formCreator(moveContainer)
+    if (button.formContainer) {
+      return button.formContainer.appendChild(newForm)
+    }
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    if (moveSequence.nextSibling) {
+      moveContainer.insertBefore(newForm, moveSequence.nextSibling)
+    } else{
+      moveContainer.appendChild(newForm)
+    }
+  }
+
+  function makeInsertionTypeSelector () {
+    const template = document.querySelector('#insertion-form-selector')
+    const form = document.importNode(template.content, true)
+    const nagButton = form.querySelector('.nag-button')
+    nagButton.formCreator = makeNagForm
+    nagButton.onclick = switchForm
+    const annotationButton = form.querySelector('.annotation-button')
+    annotationButton.formCreator = makeAnnotationBuilder
+    annotationButton.onclick = switchForm
+    const alternativeMovesButton = form.querySelector('.alternative-moves-button')
+    alternativeMovesButton.formCreator = makeAlternativeMovesForm
+    alternativeMovesButton.onclick = switchForm
+    const quizButton = form.querySelector('.quiz-button')
+    quizButton.formCreator = makeQuizForm
+    quizButton.onclick = switchForm
+    const cancelButton = form.querySelector('.cancel-button')
+    cancelButton.onclick = (event) => {
+      event.preventDefault()
+      const moveContainer = findMoveContainer(event.target)
+      unexpandMoveContainer(moveContainer)
+      unselectMoveSequencePosition(moveContainer)
+      clearContents(moveContainer)
+    }
+    return form
+  }
+
+  function makeAnnotationBuilder(moveContainer, annotationSequence) {
+    clearContents(moveContainer)
+    const form = createForm('#annotation-builder')
+    const moveSequence = form.querySelector('.annotation-sequence')
+    moveContainer.annotationSequence = annotationSequence || ['{}']
+    renderSequence(moveContainer.annotationSequence, moveSequence, true)
+    const defaultOptions = createForm('#annotation-builder-options')
+    const formContainer = form.querySelector('.annotation-form-container')
+    formContainer.appendChild(defaultOptions)
+    const addAnnotationButton = form.querySelector('.add-annotation-button')
+    addAnnotationButton.formCreator = makeAnnotationTypeSelector
+    addAnnotationButton.formContainer = formContainer
+    addAnnotationButton.onclick = switchForm
+    const cancelButton = form.querySelector('.cancel-button')
+    cancelButton.formCreator = makeInsertionTypeSelector
+    cancelButton.onclick = switchForm
+    return form
+  }
+
+  function makeAnnotationTypeSelector (moveContainer) {
+    const form = createForm('#annotation-type-selector')
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    const addTextButton = form.querySelector('.add-text-button')
+    addTextButton.formCreator = makeAnnotationTextForm
+    addTextButton.formContainer = formContainer
+    addTextButton.onclick = switchForm
+    const addSquareButton = form.querySelector('.add-square-button')
+    addSquareButton.formCreator = makeAnnotationSquareForm
+    addSquareButton.formContainer = formContainer
+    addSquareButton.onclick = switchForm
+    const addArrowButton = form.querySelector('.add-arrow-button')
+    addArrowButton.formCreator = makeAnnotationArrowForm
+    addArrowButton.formContainer = formContainer
+    addArrowButton.onclick = switchForm
+    const cancelButton = form.querySelector('.cancel-button')
+    cancelButton.formCreator = makeAnnotationBuilder
+    cancelButton.onclick = switchForm
+    return form
+  }
+
+  function makeNagForm (eventOrTemplate) {
+    const template = eventOrTemplate && eventOrTemplate.substring ? eventOrTemplate : '#new-nag-form'
+    const newForm = createForm(template)
+    const nagIndex = document.querySelector('#nag-index')
+    const nagSelect = newForm.querySelector('.nag-select')
+    nagSelect.innerHTML = nagIndex.content.firstElementChild.innerHTML
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeInsertionTypeSelector
+    cancelButton.onclick = switchForm
+    const addNagButton = newForm.querySelector('.add-nag-button')
+    if (addNagButton) {
+      addNagButton.onclick = addNag
+    }
+    const updateNagButton = newForm.querySelector('.update-nag-button')
+    if (updateNagButton) {
+      updateNagButton.onclick = updateNag
+    }
+    const deleteNagButton = newForm.querySelector('.delete-nag-button')
+    if (deleteNagButton) {
+      deleteNagButton.onclick = deleteNag
+    }
+    return newForm
+  }
+
+  function makeAlternativeMovesForm () {
+    const newForm = createForm('#new-alternative-moves-form')
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeInsertionTypeSelector
+    cancelButton.onclick = switchForm
+    return newForm
+  }
+
+  function makeQuizForm () {
+    const newForm = createForm('#new-quiz-form')
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeInsertionTypeSelector
+    cancelButton.onclick = switchForm
+    return newForm
+  }
+
+  function makeAnnotationTextForm(moveContainer, template) {
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    const newForm = createForm(template || '#new-text-annotation-form')
+    const insertTextButton = newForm.querySelector('.insert-text-button')
+    if (insertTextButton) {      
+      insertTextButton.onclick = insertAnnotationText
+    }
+    const updateButton = newForm.querySelector('.update-text-button')
+    if (updateButton) {
+      updateButton.onclick = updateAnnotationText
+    }
+    const deleteButton = newForm.querySelector('.delete-text-button')
+    if (deleteButton) {
+      deleteButton.onclick = deleteAnnotationText
+    }
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeAnnotationTypeSelector
+    cancelButton.formContainer = formContainer
+    cancelButton.onclick = switchForm
+    return newForm
+  }
+
+  function makeAnnotationSquareForm (moveContainer) {
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    const newForm = createForm('#new-square-annotation-form')
+    const chessboard = newForm.querySelector('.chessboard')
+    setupMiniChessBoard(chessboard, null, moveContainer.move)
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeAnnotationTypeSelector
+    cancelButton.formContainer = formContainer
+    cancelButton.onclick = switchForm
+    return newForm
+  }
+
+  function makeAnnotationArrowForm (moveContainer) {
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    const newForm = createForm('#new-arrow-annotation-form')
+    const chessboard = newForm.querySelector('.chessboard')
+    const hitarea = newForm.querySelector('.hitarea')
+    setupMiniChessBoard(chessboard, hitarea, moveContainer.move)
+    const cancelButton = newForm.querySelector('.cancel-button')
+    cancelButton.formCreator = makeAnnotationTypeSelector
+    cancelButton.formContainer = formContainer
+    cancelButton.onclick = switchForm
+    return newForm
+  }
+
+  function createForm (templateid) {
+    const template = document.querySelector(templateid)
+    const newForm = document.importNode(template.content, true)
+    return newForm
   }
 
   function startHighlightArrow (event) {
@@ -625,48 +897,23 @@
     }
   }
 
-  function showAnnotationTab (event) {
-    if (event && event.preventDefault) {
-      event.preventDefault()
-    }
+  function toggleEditOptions (event) {
     const moveContainer = findMoveContainer(event.target)
-    const buttons = moveContainer.querySelectorAll('.annotation-tab-button')
-    for (const button of buttons) {
-      if (button === event.target) {
-        button.classList.add('current-annotation-button')
-      } else if (button.classList.contains('current-annotation-button')) {
-        button.classList.remove('current-annotation-button')
-      }
-    }
-    const tabs = moveContainer.querySelectorAll('.annotation-tab')
-    const buttonIndex = findElementChildIndex(event.target.parentNode)
-    let tabIndex = -1
-    for (const tab of tabs) {
-      tabIndex++
-      if (buttonIndex === tabIndex) {
-        tab.classList.add('current-annotation-tab')
-      } else if (tab.classList.contains('current-annotation-tab')) {
-        tab.classList.remove('current-annotation-tab')
-      }
-    }
-  }
-
-  function showEditOptions (event) {
-    const button = event.target
-    const buttonMenu = button.parentNode.parentNode
-    if (button.firstChild.classList.contains('fa-edit')) {
-      buttonMenu.parentNode.classList.add('show-positioning')
-      button.firstChild.classList.remove('fa-edit')
-      button.firstChild.classList.add('fa-minus-circle')
+    if (moveContainer.classList.contains('show-positioning')) {
+      unexpandMoveContainer(moveContainer)
+      unselectMoveSequencePosition(moveContainer)
+      return clearContents(moveContainer)
     } else {
-      buttonMenu.parentNode.classList.remove('show-positioning')
-      button.firstChild.classList.add('fa-edit')
-      button.firstChild.classList.remove('fa-minus-circle')
-      return cancelAndCloseForm(event)
+      return expandMoveContainer(moveContainer)
     }
   }
 
-  function commitAnnotation (event) {
+  /**
+   * adds annotation to the move sequence
+   * @param {} event 
+   * @returns 
+   */
+  function addAnnotation (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
     let annotation = moveContainer.annotationSequence.join(' ')
@@ -681,60 +928,158 @@
     }
     expandedSequence.splice(position || 0, 0, ' ', annotation)
     moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
-    const addAnnotationButton = document.createElement('button')
-    addAnnotationButton.className = 'button move-option-button'
-    addAnnotationButton.innerHTML = '<i class="fas fa-edit"></i>'
-    addAnnotationButton.annotateForm = 'annotation'
-    addAnnotationButton.onclick = showEditOptions
-    const showSpacing = document.createElement('li')
-    showSpacing.className = 'move-options-item'
-    showSpacing.appendChild(addAnnotationButton)
     const sequence = selectedPosition.parentNode
     renderSequence(moveContainer.move.sequence, sequence)
-    sequence.insertBefore(showSpacing, sequence.firstChild)
-    return cancelAndCloseForm(event)
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
   }
 
-  function commitNag (event) {
+  function updateAnnotation () {
+
+  }
+
+  function deleteAnnotation () {
+
+  }
+
+  /**
+   * adds a nag to the move sequence
+   * @param {} event 
+   * @returns 
+   */
+  function addNag (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
     const nag = moveContainer.querySelector('.nag-select').value
-    const selectedPosition = moveContainer.querySelector('.selected-position')
-    const position = findElementChildIndex(selectedPosition)
-    const move = moveContainer.move
-    const expandedSequence = expandSequence(move.sequence)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const selectedItem = moveSequence.querySelector('.selected-position')
+    const expandedSequence = selectedItem.sequence
+    const position = selectedItem.position
     expandedSequence.splice(position || 0, 0, ' ', nag)
-    move.sequence = contractExpandedSequence(expandedSequence)
-    const addAnnotationButton = document.createElement('button')
-    addAnnotationButton.className = 'button move-option-button'
-    addAnnotationButton.innerHTML = '<i class="fas fa-edit"></i>'
-    addAnnotationButton.annotateForm = 'annotation'
-    addAnnotationButton.onclick = showEditOptions
-    const showSpacing = document.createElement('li')
-    showSpacing.className = 'move-options-item'
-    showSpacing.appendChild(addAnnotationButton)
-    const sequence = selectedPosition.parentNode
-    renderSequence(move.sequence, sequence)
-    sequence.insertBefore(showSpacing, sequence.firstChild)
-    return cancelAndCloseForm(event)
+    moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
+    renderSequence(moveContainer.move.sequence, moveSequence)
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
   }
 
+  function updateNag (event) {
+    const moveContainer = findMoveContainer(event.target)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const selectedItem = moveSequence.querySelector('.edit-position')
+    const expandedSequence = selectedItem.sequence
+    const position = selectedItem.position
+    const newNag = moveContainer.querySelector('.nag-select').value
+    expandedSequence[position] = newNag
+    moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
+    renderSequence(moveContainer.move.sequence, moveSequence)
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
+  }
+
+  function deleteNag (event) {
+    const moveContainer = findMoveContainer(event.target)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const selectedItem = moveSequence.querySelector('.edit-position')
+    const expandedSequence = selectedItem.sequence
+    const position = selectedItem.position
+    expandedSequence.splice(position, 1)
+    moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
+    renderSequence(moveContainer.move.sequence, moveSequence)
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
+  }
+
+  /**
+   * adds text to the annotation block
+   * @param {} event 
+   * @returns 
+   */
   function insertAnnotationText (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const annotationPosition = annotationSequence.querySelector('.edit-position')
     const textArea = moveContainer.querySelector('.annotation-text')
     const annotationText = textArea.value
     textArea.value = ''
-    const moveSequence = moveContainer.querySelector('.annotation-sequence')
-    const selectedPosition = moveSequence.querySelector('.selected-position')
-    const position = findElementChildIndex(selectedPosition)
-    const expandedSequence = expandSequence(moveContainer.annotationSequence)
-    expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
+    const expandedSequence = annotationPosition.sequence
+    const position = annotationPosition.position
+    expandedSequence.splice(position, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
-    renderSequence(moveContainer.annotationSequence, moveSequence, true)
-    return cancelAndCloseAnnotationForm(event)
+    const selectedPosition = moveSequence.querySelector('.selected-position')
+    moveContainer.move.sequence[selectedPosition.position] = contractExpandedSequence(expandedSequence)
+    renderSequence(moveContainer.annotationSequence, annotationSequence, true)
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
   }
 
+  function updateAnnotationText (event) {
+    event.preventDefault()
+    const moveContainer = findMoveContainer(event.target)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const annotationPosition = annotationSequence.querySelector('.edit-position')
+    const textArea = moveContainer.querySelector('.annotation-text')
+    const annotationText = textArea.value
+    textArea.value = ''
+    const expandedSequence = annotationPosition.sequence
+    const position = annotationPosition.position
+    expandedSequence[position] = annotationText
+    moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
+    const movePosition = moveSequence.querySelector('.edit-position')
+    moveContainer.move.sequence[movePosition.position - 1] = moveContainer.annotationSequence.join(' ')
+    renderSequence(moveContainer.annotationSequence, annotationSequence, true)
+    renderSequence(moveContainer.move.sequence, moveSequence, true)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
+  }
+
+  function deleteAnnotationText (event) {
+    event.preventDefault()
+    const moveContainer = findMoveContainer(event.target)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const annotationPosition = annotationSequence.querySelector('.edit-position')
+    const expandedSequence = annotationPosition.sequence
+    const position = annotationPosition.position
+    expandedSequence.splice(position, 2)
+    moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
+    const movePosition = moveSequence.querySelector('.edit-position')
+    if (moveContainer.annotationSequence.length === 1 && moveContainer.annotationSequence[0] === '{}') {
+      delete (moveContainer.annotationSequence)
+      moveContainer.move.sequence.splice([movePosition.position - 1], 1)
+      moveContainer.move.sequence = contractExpandedSequence(moveContainer.move.sequence)
+    } else {
+      moveContainer.move.sequence[movePosition.position - 1] = contractExpandedSequence(expandedSequence).join(' ')
+    }
+    annotationPosition.sequence = moveContainer.expandedSequence
+    movePosition.sequence = moveContainer.move.sequence
+    renderSequence(moveContainer.move.sequence, moveSequence, true)
+    if (moveContainer.annotationSequence) {
+      renderSequence(moveContainer.annotationSequence, annotationSequence, true)
+    }
+    resetMoveContainerButtons(moveContainer)
+    clearContents(moveContainer)
+    // unselectMoveSequencePosition(moveContainer)
+    // unexpandMoveContainer(moveContainer)
+  }
+
+  /**
+   * adds [% csl] to the annotation block
+   * @param {*} event 
+   * @returns 
+   */
   function insertSquareText (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
@@ -774,18 +1119,25 @@
       annotationParts.push(`[%csl ${color.charAt(0).toUpperCase()}${colors[color].join(',')}]`)
     }
     const annotationText = annotationParts.join('')
-    const moveSequence = moveContainer.querySelector('.annotation-sequence')
-    const selectedPosition = moveSequence.querySelector('.selected-position')
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const selectedPosition = annotationSequence.querySelector('.selected-position')
     const position = findElementChildIndex(selectedPosition)
     const expandedSequence = expandSequence(moveContainer.annotationSequence)
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
-    renderSequence(moveContainer.annotationSequence, moveSequence, true)
+    renderSequence(moveContainer.annotationSequence, annotationSequence, true)
     const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
     resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
-    return cancelAndCloseAnnotationForm(event)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
   }
 
+  /**
+   * adds [%cal] to the annotation
+   * @param {} event 
+   * @returns 
+   */
   function insertArrowText (event) {
     event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
@@ -810,16 +1162,18 @@
       annotationParts.push(`[%cal ${color.charAt(0).toUpperCase()}${colors[color].join(',')}]`)
     }
     const annotationText = annotationParts.join('')
-    const moveSequence = moveContainer.querySelector('.annotation-sequence')
-    const selectedPosition = moveSequence.querySelector('.selected-position')
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const selectedPosition = annotationSequence.querySelector('.selected-position')
     const position = findElementChildIndex(selectedPosition)
     const expandedSequence = expandSequence(moveContainer.annotationSequence)
     expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
-    renderSequence(moveContainer.annotationSequence, moveSequence, true)
+    renderSequence(moveContainer.annotationSequence, annotationSequence, true)
     const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
     resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
-    return cancelAndCloseAnnotationForm(event)
+    clearContents(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    unexpandMoveContainer(moveContainer)
   }
 
   function drawArrow (firstCoordinate, lastCoordinate, chessboard, container) {
@@ -928,45 +1282,60 @@
     }
   }
 
-  function cancelAndCloseAnnotationForm (event) {
-    event.preventDefault()
-    const moveContainer = findMoveContainer(event.target)
-    const typeButtons = moveContainer.querySelector('.annotation-button-container')
-    typeButtons.style.display = 'block'
-    const textInput = moveContainer.querySelector('.text-input')
-    textInput.style.display = 'none'
-    const arrowInput = moveContainer.querySelector('.arrow-input')
-    arrowInput.style.display = 'none'
-    const squareInput = moveContainer.querySelector('.square-input')
-    squareInput.style.display = 'none'
-    const resetArrowChessBoardButton = moveContainer.querySelector('.reset-arrows-button')
-    resetArrowChessBoardButton.onclick({ target: resetArrowChessBoardButton })
-    const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
-    resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
-    const list = moveContainer.querySelector('.annotation-sequence')
-    for (const child of list.children) {
-      if (!child.classList.contains('sequence-position-item')) {
-        continue
-      }
-      child.classList.remove('selected-position')
-      child.firstChild.firstChild.classList.add('fa-circle')
-      child.firstChild.firstChild.classList.remove('fa-dot-circle')
+  function expandMoveContainer(moveContainer) {
+    moveContainer.classList.add('show-positioning')
+    const circle = moveContainer.querySelector('.fa-edit')
+    if (circle) {
+      circle.classList.add('fa-minus-circle')
+      circle.classList.remove('fa-edit')
     }
-    list.children[list.children.length - 2].onclick({ target: list.children[list.children.length - 2].firstChild })
   }
 
-  function cancelAndCloseForm (event) {
-    event.preventDefault()
-    const moveContainer = findMoveContainer(event.target)
+  function unexpandMoveContainer(moveContainer) {
     moveContainer.classList.remove('show-positioning')
-    const minusCircle = moveContainer.querySelector('.fa-minus-circle')
-    if (minusCircle) {
-      minusCircle.classList.remove('fa-minus-circle')
-      minusCircle.classList.add('fa-edit')
+    const circle = moveContainer.querySelector('.fa-minus-circle')
+    if (circle) {
+      circle.classList.remove('fa-minus-circle')
+      circle.classList.add('fa-edit')
     }
-    const forms = moveContainer.querySelector('.annotation-forms')
-    if (forms) {
-      forms.parentNode.removeChild(forms)
+  }
+
+  function unselectMoveSequencePosition (moveContainer) {
+    moveContainer.classList.remove('show-positioning')
+    const list = moveContainer.querySelector('.move-sequence')
+    for (const child of list.children) {
+      if (child.classList.contains('selected-position')) {
+        child.classList.remove('selected-position')
+        child.firstChild.firstChild.classList.add('fa-circle')
+        child.firstChild.firstChild.classList.remove('fa-dot-circle')
+      }
+      if (child.classList.contains('edit-position')) {
+        child.classList.remove('edit-position')
+      }
+    }
+  }
+
+  function resetMoveContainerButtons (moveContainer) {
+    const toggleInsertionSpacesButton = document.createElement('button')
+    toggleInsertionSpacesButton.className = 'button move-option-button'
+    toggleInsertionSpacesButton.innerHTML = '<i class="fas fa-edit"></i>'
+    toggleInsertionSpacesButton.annotateForm = 'annotation'
+    toggleInsertionSpacesButton.onclick = toggleEditOptions
+    const showSpacing = document.createElement('li')
+    showSpacing.className = 'move-options-item'
+    showSpacing.appendChild(toggleInsertionSpacesButton)
+    const sequence = moveContainer.querySelector('.move-sequence')
+    sequence.insertBefore(showSpacing, sequence.firstChild)
+  }
+
+  function clearContents (moveContainer) {
+    for (const child of moveContainer.children) {
+      if (!child.classList.contains('move-sequence') && !child.classList.contains('move-list')) {
+        moveContainer.removeChild(child)
+      }
+      if (child.classList.contains('annotation-sequence')) {
+        moveContainer.removeChild(child)
+      }
     }
   }
 

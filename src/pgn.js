@@ -21,6 +21,7 @@ window.setupPGN = () => {
       }
     }
   }
+  const menuContainer = document.querySelector('.pgn-controls')
   const loadPasteButton = document.querySelector('.file-load-pasted-pgn')
   if (loadPasteButton) {
     loadPasteButton.onclick = () => {
@@ -31,17 +32,16 @@ window.setupPGN = () => {
       window.loadPGNFile(loadText.value)
       loadText.value = ''
       pasteContainer.style.display = 'none'
-      pgnContainer.style.display = 'block'
+      viewPGN.style.display = 'block'
+      menuContainer.style.display = 'block'
     }
   }
-  const menuContainer = document.querySelector('.view-pgn-controls')
   const pasteContainer = document.querySelector('.paste-pgn-container')
-  const pgnContainer = document.querySelector('.view-pgn')
   const cancelPastebutton = document.querySelector('.file-cancel-paste')
   if (cancelPastebutton) {
     cancelPastebutton.onclick = () => {
       pasteContainer.style.display = 'none'
-      pgnContainer.style.display = 'block'
+      viewPGN.style.display = 'block'
       menuContainer.style.display = 'block'
     }
   }
@@ -49,7 +49,7 @@ window.setupPGN = () => {
   if (pasteTextButton) {
     pasteTextButton.onclick = () => {
       pasteContainer.style.display = 'block'
-      pgnContainer.style.display = 'none'
+      viewPGN.style.display = 'none'
       menuContainer.style.display = 'none'
     }
   }
