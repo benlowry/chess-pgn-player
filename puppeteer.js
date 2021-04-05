@@ -79,14 +79,15 @@ async function saveScreenshot(page, filename) {
 
 async function clickNthEditButton(page, identifier, nth) {
   return page.evaluate((identifier, nth) => {
-    const list = document.querySelector(identifier)
-    list.children[nth].onclick({
-      target: list.children[nth]
+    const buttons = document.querySelector(identifier).querySelectorAll('.move-option-button')
+    buttons[nth].onclick({
+      target: buttons[nth]
     })
   }, identifier, nth)
 }
 
 async function clickNthPosition(page, identifier, nth) {
+  console.log('clicking', identifier, nth)
   return page.evaluate((identifier, nth) => {
     const list = document.querySelector(identifier)
     list.children[nth].onmousedown({

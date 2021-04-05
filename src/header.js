@@ -16,9 +16,10 @@ window.refreshHeader = () => {
     properties.push('Black')
   }
   if (properties.indexOf('Result') === -1) {
-    properties.push('*')
+    properties.push('Result')
   }
   for (const property of properties) {
+    console.log('hader property', property)
     const element = document.querySelector(`.header-${property.toLowerCase()}`)
     if (!element) {
       continue

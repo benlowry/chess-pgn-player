@@ -113,6 +113,7 @@ window.onload = function () {
         try {
           component.refresh(event)
         } catch (error) {
+          console.log('failed to refresh', component.name, error.message)
           console.log(error)
         }
       }

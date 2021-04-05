@@ -2,8 +2,8 @@
 const assert = require('assert')
 const puppeteer = require('../puppeteer.js')
 
-describe('tags.js', () => {
-  describe('screenshots', () => {
+describe('tags', () => {
+  describe('view', () => {
     it('should view tags', async () => {
       const testName = 'view-tags'
       const page = await puppeteer.createBrowser()
@@ -38,7 +38,9 @@ describe('tags.js', () => {
       assert.strictEqual(true, content.indexOf('[Test "Test value"]') > -1)
       await puppeteer.close(page)
     })
+  })
 
+  describe('update', () => {
     it('should update tag', async () => {
       const testName = 'update-tag'
       const page = await puppeteer.createBrowser()
@@ -60,7 +62,9 @@ describe('tags.js', () => {
       assert.strictEqual(true, content.indexOf('[Test "Test value"]') > -1)
       await puppeteer.close(page)
     })
+  })
 
+  describe('delete', () => {
     it('should delete tag', async () => {
       const testName = 'delete-tag'
       const page = await puppeteer.createBrowser()

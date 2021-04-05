@@ -171,11 +171,17 @@
     while (joined.indexOf('  ') > -1) {
       joined = joined.split('  ').join(' ')
     }
-    return window.parser.tokenizeLine(joined)
+    let parser
+    if (typeof require !== 'undefined') {
+      parser = require('pgn-parser')
+    } else {
+      parser = window.parser
+    }
+    return parser.tokenizeLine(joined)
   }
 
-  function renderMoves (blocks, parent, timeline) {
-    for (const move of blocks) {
+  function renderMoves (moves, parent, timeline) {
+    for (const move of moves) {
       const li = document.createElement('li')
       li.moveIndex = move.move
       li.move = move
@@ -926,7 +932,7 @@
     if (expandedSequence.indexOf('{') > -1 && expandedSequence.indexOf('{') < position - 1 && expandedSequence.indexOf('}') > position - 1) {
       annotation = annotation.slice(1, annotation.length - 1)
     }
-    expandedSequence.splice(position || 0, 0, ' ', annotation)
+    expandedSequence.splice(position, 0, ' ', annotation)
     moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
     const sequence = selectedPosition.parentNode
     renderSequence(moveContainer.move.sequence, sequence)
@@ -957,7 +963,7 @@
     const selectedItem = moveSequence.querySelector('.selected-position')
     const expandedSequence = selectedItem.sequence
     const position = selectedItem.position
-    expandedSequence.splice(position || 0, 0, ' ', nag)
+    expandedSequence.splice(position, 0, ' ', nag)
     moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
     renderSequence(moveContainer.move.sequence, moveSequence)
     resetMoveContainerButtons(moveContainer)
@@ -967,6 +973,7 @@
   }
 
   function updateNag (event) {
+    event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
     const moveSequence = moveContainer.querySelector('.move-sequence')
     const selectedItem = moveSequence.querySelector('.edit-position')
@@ -983,6 +990,7 @@
   }
 
   function deleteNag (event) {
+    event.preventDefault()
     const moveContainer = findMoveContainer(event.target)
     const moveSequence = moveContainer.querySelector('.move-sequence')
     const selectedItem = moveSequence.querySelector('.edit-position')
@@ -990,6 +998,7 @@
     const position = selectedItem.position
     expandedSequence.splice(position, 1)
     moveContainer.move.sequence = contractExpandedSequence(expandedSequence)
+    console.log(window.pgn.turns[0], moveContainer.move.sequence)
     renderSequence(moveContainer.move.sequence, moveSequence)
     resetMoveContainerButtons(moveContainer)
     clearContents(moveContainer)
@@ -1053,7 +1062,7 @@
     const annotationPosition = annotationSequence.querySelector('.edit-position')
     const expandedSequence = annotationPosition.sequence
     const position = annotationPosition.position
-    expandedSequence.splice(position, 2)
+    expandedSequence.splice(position, 1)
     moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
     const movePosition = moveSequence.querySelector('.edit-position')
     if (moveContainer.annotationSequence.length === 1 && moveContainer.annotationSequence[0] === '{}') {

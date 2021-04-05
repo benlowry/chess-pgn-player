@@ -3,8 +3,8 @@ const assert = require('assert')
 const parser = require('pgn-parser')
 const puppeteer = require('../puppeteer.js')
 
-describe('pgn.js', () => {
-  describe('screenshots', () => {
+describe('pgn', () => {
+  describe('view', () => {
     it('should view PGN file', async () => {
       const testName = 'view-pgn'
       const page = await puppeteer.createBrowser()
@@ -16,7 +16,9 @@ describe('pgn.js', () => {
       assert.strictEqual(true, content.startsWith('[Event "F/S Return Match"]'))
       await puppeteer.close(page)
     })
+  })
 
+  describe('cancel pasting text', () => {
     it('should cancel pasting PGN text', async () => {
       const testName = 'cancel-pasting-pgn'
       const pastePGNText = `[Event "Wch27"]
@@ -51,7 +53,9 @@ describe('pgn.js', () => {
       assert.notStrictEqual(parser.cleanSpacing(content), parser.cleanSpacing(pastePGNText))
       await puppeteer.close(page)
     })
+  })
 
+  describe('load pasted text', () => {
     it('should load pasted PGN text', async () => {
       const testName = 'load-pasted-pgn'
       const pastePGNText = `[Event "Wch27"]
