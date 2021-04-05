@@ -77,7 +77,7 @@ async function saveScreenshot(page, filename) {
   })
 }
 
-async function clickNthEditButton(page, identifier, nth) {
+async function clickNthEditButton (page, identifier, nth) {
   return page.evaluate((identifier, nth) => {
     const buttons = document.querySelector(identifier).querySelectorAll('.move-option-button')
     buttons[nth].onclick({
@@ -86,8 +86,7 @@ async function clickNthEditButton(page, identifier, nth) {
   }, identifier, nth)
 }
 
-async function clickNthPosition(page, identifier, nth) {
-  console.log('clicking', identifier, nth)
+async function clickNthPosition (page, identifier, nth) {
   return page.evaluate((identifier, nth) => {
     const list = document.querySelector(identifier)
     list.children[nth].onmousedown({
