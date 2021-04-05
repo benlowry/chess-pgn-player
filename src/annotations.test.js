@@ -39,219 +39,310 @@ describe('annotations', () => {
     })
   })
 
-  describe('annotations', () => {
-    describe('insert', () => {
-
-    })
-
-    describe('update', () => {
-
-    })
-
-    describe.only('delete', () => {
-      it.only('should delete annotation from any position', async () => {
-        const testName = 'delete-annotation'
-        const positions = ['-', ' ', '{preturn}', ' ', '1.', ' ', '{premove}', ' ', 'e4', ' ', '{postmove}', ' ']
-        const expected = [
-          '1. {premove} e4 {postmove}',
-          '{preturn} 1.e4 {postmove}',
-          '{preturn} 1. {premove} e4'
-        ]
-        let resultIndex = 0
-        for (const i in positions) {
-          if (positions[i][0] !== '{') {
-            continue
-          }
-          console.log('result index', resultIndex, 'i', i, 'position', positions[i])
-          const page = await puppeteer.createBrowser(`[Event "Wch27"]
-
-{preturn} 1. {premove} e4 {postmove} c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
-          const annotationsButton = await puppeteer.getElement(page, 'Annotations')
-          await annotationsButton.click()
-          await page.waitForSelector('.move-sequence')
-          await page.waitForSelector('.move-option-button')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
-          await puppeteer.clickNthEditButton(page, '.move-list', 0)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
-          await puppeteer.clickNthPosition(page, '.move-sequence', i)
-          console.log('wait for annotation sequence')
-          await page.waitForSelector('.annotation-sequence')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
-          console.log('click annotation sequence')
-          await puppeteer.clickNthPosition(page, '.annotation-sequence', 2)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
-
-          await page.waitForSelector('.delete-text-button')
-          const deleteText = await puppeteer.getElement(page, '.delete-text-button')
-          await deleteText.click()
-          await puppeteer.wait(100)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
-          const pgnButton = await puppeteer.getElement(page, 'PGN')
-          await pgnButton.click()
-          await page.waitForSelector('.pgn')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
-          const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
-          const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
-          console.log('expected', expected[resultIndex])
-          console.log('moves', moves)
-          assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
-          await page.close()
-          await page.browser.close()
-          resultIndex++
+  describe('text annotations', () => {
+    it('should insert into any position', async () => {
+      const testName = 'insert-annotation'
+      const positions = ['-', ' ', '1.', ' ', 'e4', ' ']
+      const expected = [
+        '{annotation text} 1.e4',
+        '1. {annotation text} e4',
+        '1.e4 {annotation text}'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i] !== ' ') {
+          continue
         }
-      })
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
+
+1.e4 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-sequence')
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await page.waitForSelector('.annotation-button')
+        const annotationButton = await puppeteer.getElement(page, '.annotation-button')
+        await annotationButton.click()
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        await puppeteer.clickNthPosition(page, '.annotation-sequence', 1)
+        await page.waitForSelector('.add-text-button')
+        const addTextButton = await puppeteer.getElement(page, '.add-text-button')
+        await addTextButton.click()
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        await page.waitForSelector('.annotation-text')
+        const annotationText = await puppeteer.getElement(page, '.annotation-text')
+        await annotationText.type('annotation text')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
+        const insertTextButton = await puppeteer.getElement(page, '.insert-text-button')
+        await insertTextButton.click()
+        await page.waitForSelector('.insert-annotation-button')
+        const insertAnnotationButton = await puppeteer.getElement(page, '.insert-annotation-button')
+        insertAnnotationButton.click()          
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-9.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-10.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 3)
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
+    })
+
+    it('should update in any position', async () => {
+      const testName = 'update-annotation'
+      const positions = ['-', ' ', '{pre turn}', ' ','1.', ' ', '{pre move}', ' ', 'e4', ' ', '{post move}']
+      const expected = [
+        '{updated text} 1. {pre move} e4 {post move}',
+        '{pre turn} 1. {updated text} e4 {post move}',
+        '{pre turn} 1. {pre move} e4 {updated text}'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i][0] !== '{') {
+
+          continue
+        }
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
+
+{pre turn} 1. {pre move} e4 {post move} c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await page.waitForSelector('.move-sequence')
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await page.waitForSelector('.annotation-sequence')
+        await puppeteer.clickNthPosition(page, '.annotation-sequence', 2)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        await page.waitForSelector('.annotation-text')
+        const annotationText = await puppeteer.getElement(page, '.annotation-text')
+        await page.evaluate(() => document.querySelector('.annotation-text').value = '')
+        await annotationText.type('updated text')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        const updateTextButton = await puppeteer.getElement(page, '.update-text-button')
+        await updateTextButton.click()
+        await page.waitForSelector('.update-annotation-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
+        const updateAnnotationButton = await puppeteer.getElement(page, '.update-annotation-button')
+        await updateAnnotationButton.click()
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-8.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-9.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 3)
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
+    })
+
+    it('should delete from any position', async () => {
+      const testName = 'delete-annotation'
+      const positions = ['-', ' ', '{pre turn}', ' ', '1.', ' ', '{pre move}', ' ', 'e4', ' ', '{post move}', ' ']
+      const expected = [
+        '1. {pre move} e4 {post move}',
+        '{pre turn} 1.e4 {post move}',
+        '{pre turn} 1. {pre move} e4'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i][0] !== '{') {
+          continue
+        }
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
+
+{pre turn} 1.{pre move} e4 {post move} c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-sequence')
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await page.waitForSelector('.annotation-sequence')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await puppeteer.clickNthPosition(page, '.annotation-sequence', 2)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        await page.waitForSelector('.delete-text-button')
+        const deleteText = await puppeteer.getElement(page, '.delete-text-button')
+        await deleteText.click()
+        await puppeteer.wait(100)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
     })
   })
 
   describe('nags', () => {
-    describe('insert', () => {
-      it('should insert nag into any position', async () => {
-        const testName = 'insert-nag'
-        const positions = ['-', ' ', '1.', ' ', 'e4', ' ']
-        const expected = [
-          '$14 1.e4',
-          '1.$15 e4',
-          '1.e4 $16'
-        ]
-        let resultIndex = 0
-        for (const i in positions) {
-          if (positions[i] !== ' ') {
-            continue
-          }
-          const page = await puppeteer.createBrowser(`[Event "Wch27"]
+    it('should insert into any position', async () => {
+      const testName = 'insert-nag'
+      const positions = ['-', ' ', '1.', ' ', 'e4', ' ']
+      const expected = [
+        '$14 1.e4',
+        '1.$15 e4',
+        '1.e4 $16'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i] !== ' ') {
+          continue
+        }
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
 
 1.e4 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
-          const annotationsButton = await puppeteer.getElement(page, 'Annotations')
-          await annotationsButton.click()
-          await page.waitForSelector('.move-sequence')
-          await page.waitForSelector('.move-option-button')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
-          await puppeteer.clickNthEditButton(page, '.move-list', 0)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
-          await puppeteer.clickNthPosition(page, '.move-sequence', i)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
-          await page.waitForSelector('.nag-button')
-          const nagButton = await puppeteer.getElement(page, '.nag-button')
-          nagButton.click()
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
-          await page.waitForSelector('.nag-select')
-          const nagSelect = await puppeteer.getElement(page, '.nag-select')
-          await nagSelect.select('$' + (14 + resultIndex))
-          await page.waitForSelector('.add-nag-button')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
-          const insertNag = await puppeteer.getElement(page, '.add-nag-button')
-          insertNag.click()
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
-          const pgnButton = await puppeteer.getElement(page, 'PGN')
-          await pgnButton.click()
-          await page.waitForSelector('.pgn')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-8.png`)
-          const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
-          const moves = content.substring(content.indexOf(']\n\n') + 3)
-          assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
-          await page.close()
-          await page.browser.close()
-          resultIndex++
-        }
-      })
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-sequence')
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await page.waitForSelector('.nag-button')
+        const nagButton = await puppeteer.getElement(page, '.nag-button')
+        nagButton.click()
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        await page.waitForSelector('.nag-select')
+        const nagSelect = await puppeteer.getElement(page, '.nag-select')
+        await nagSelect.select('$' + (14 + resultIndex))
+        await page.waitForSelector('.add-nag-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        const insertNag = await puppeteer.getElement(page, '.add-nag-button')
+        insertNag.click()
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-8.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 3)
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
     })
 
-    describe('update', () => {
-      it('should update nag in any position', async () => {
-        const testName = 'update-nag'
-        const positions = ['-', ' ', '$0', ' ', '1.', ' ', '$1', ' ', 'e4', ' ', '$2', ' ']
-        const expected = [
-          '$27 1.$1 e4',
-          '$0 1.$28 e4',
-          '$0 1.$1 e4 $29'
-        ]
-        let resultIndex = 0
-        for (const i in positions) {
-          if (positions[i][0] !== '$') {
-            continue
-          }
-          const page = await puppeteer.createBrowser(`[Event "Wch27"]
+    it('should update in any position', async () => {
+      const testName = 'update-nag'
+      const positions = ['-', ' ', '$0', ' ', '1.', ' ', '$1', ' ', 'e4', ' ', '$2', ' ']
+      const expected = [
+        '$27 1.$1 e4',
+        '$0 1.$28 e4',
+        '$0 1.$1 e4 $29'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i][0] !== '$') {
+          continue
+        }
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
 
 $0 1.$1 e4 $2 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
-          const annotationsButton = await puppeteer.getElement(page, 'Annotations')
-          await annotationsButton.click()
-          await page.waitForSelector('.move-sequence')
-          await page.waitForSelector('.move-option-button')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
-          await puppeteer.clickNthEditButton(page, '.move-list', 0)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
-          await puppeteer.clickNthPosition(page, '.move-sequence', i)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
-          await page.waitForSelector('.nag-select')
-          const nagSelect = await puppeteer.getElement(page, '.nag-select')
-          await nagSelect.select('$' + (27 + resultIndex))
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
-          await page.waitForSelector('.update-nag-button')
-          const updateNag = await puppeteer.getElement(page, '.update-nag-button')
-          await updateNag.click()
-          await puppeteer.wait(100)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
-          const pgnButton = await puppeteer.getElement(page, 'PGN')
-          await pgnButton.click()
-          await page.waitForSelector('.pgn')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
-          const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
-          const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
-          assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
-          await page.close()
-          await page.browser.close()
-          resultIndex++
-        }
-      })
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-sequence')
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await page.waitForSelector('.nag-select')
+        const nagSelect = await puppeteer.getElement(page, '.nag-select')
+        await nagSelect.select('$' + (27 + resultIndex))
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        await page.waitForSelector('.update-nag-button')
+        const updateNag = await puppeteer.getElement(page, '.update-nag-button')
+        await updateNag.click()
+        await puppeteer.wait(100)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-7.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
     })
-
-    describe('delete', () => {
-      it('should delete nag from any position', async () => {
-        const testName = 'delete-nag'
-        const positions = ['-', ' ', '$0', ' ', '1.', ' ', '$1', ' ', 'e4', ' ', '$2', ' ']
-        const expected = [
-          '1.$1 e4',
-          '$0 1.e4',
-          '$0 1.$1 e4'
-        ]
-        let resultIndex = 0
-        for (const i in positions) {
-          if (positions[i][0] !== '$') {
-            continue
-          }
-          const page = await puppeteer.createBrowser(`[Event "Wch27"]
+    
+    it('should delete from any position', async () => {
+      const testName = 'delete-nag'
+      const positions = ['-', ' ', '$0', ' ', '1.', ' ', '$1', ' ', 'e4', ' ', '$2', ' ']
+      const expected = [
+        '1.$1 e4',
+        '$0 1.e4',
+        '$0 1.$1 e4'
+      ]
+      let resultIndex = 0
+      for (const i in positions) {
+        if (positions[i][0] !== '$') {
+          continue
+        }
+        const page = await puppeteer.createBrowser(`[Event "Wch27"]
 
 $0 1.$1 e4 $2 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
-          const annotationsButton = await puppeteer.getElement(page, 'Annotations')
-          await annotationsButton.click()
-          await page.waitForSelector('.move-sequence')
-          await page.waitForSelector('.move-option-button')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
-          await puppeteer.clickNthEditButton(page, '.move-list', 0)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
-          await puppeteer.clickNthPosition(page, '.move-sequence', i)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
-          await page.waitForSelector('.delete-nag-button')
-          const deleteNag = await puppeteer.getElement(page, '.delete-nag-button')
-          await deleteNag.click()
-          await puppeteer.wait(100)
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
-          const pgnButton = await puppeteer.getElement(page, 'PGN')
-          await pgnButton.click()
-          await page.waitForSelector('.pgn')
-          await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
-          const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
-          const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
-          assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
-          await page.close()
-          await page.browser.close()
-          resultIndex++
-        }
-      })
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-1.png`)
+        const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+        await annotationsButton.click()
+        await page.waitForSelector('.move-sequence')
+        await page.waitForSelector('.move-option-button')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-2.png`)
+        await puppeteer.clickNthEditButton(page, '.move-list', 0)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-3.png`)
+        await puppeteer.clickNthPosition(page, '.move-sequence', i)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-4.png`)
+        await page.waitForSelector('.delete-nag-button')
+        const deleteNag = await puppeteer.getElement(page, '.delete-nag-button')
+        await deleteNag.click()
+        await puppeteer.wait(100)
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-5.png`)
+        const pgnButton = await puppeteer.getElement(page, 'PGN')
+        await pgnButton.click()
+        await page.waitForSelector('.pgn')
+        await puppeteer.saveScreenshot(page, `${testName}-${resultIndex + 1}-6.png`)
+        const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+        const moves = content.substring(content.indexOf(']\n\n') + 1).trim()
+        assert.strictEqual(true, moves.startsWith(expected[resultIndex]))
+        await page.close()
+        await page.browser.close()
+        resultIndex++
+      }
     })
   })
 })
