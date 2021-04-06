@@ -302,7 +302,6 @@
           if (child.innerHTML === '{' || child.innerHTML === '}') {
             continue
           }
-          editMoveSequencePosition(event)
           editing = true
         }
         continue
@@ -317,7 +316,7 @@
       }
     }
     if (editing) {
-      return
+      return editMoveSequencePosition(event)
     }
     const newForm = makeInsertionTypeSelector(moveContainer)
     clearContents(moveContainer)
@@ -362,14 +361,7 @@
       const nagSelect = newForm.querySelector('.nag-select')
       nagSelect.selectedIndex = parseInt(editing.substring(1), 10)
       const cancelButton = newForm.querySelector('.cancel-button')
-      cancelButton.onclick = (event) => {
-        event.preventDefault()
-        const moveContainer = findMoveContainer(event.target)
-        unexpandMoveContainer(moveContainer)
-        unselectMoveSequencePosition(moveContainer)
-        clearContents(moveContainer)
-      }
-
+      cancelButton.onclick = cancelAndCloseForm
       const formSelector = moveContainer.querySelector('.insertion-form-selector')
       if (formSelector) {
         formSelector.parentNode.removeChild(formSelector)
@@ -385,14 +377,6 @@
     if (event.target.innerHTML.startsWith('{')) {
       clearContents(moveContainer)
       const newForm = makeAnnotationBuilder(moveContainer, window.parser.tokenizeLine(editing))
-      // const cancelButton = newForm.querySelector('.cancel-button')
-      // cancelButton.onclick = (event) => {
-      //   event.preventDefault()
-      //   const moveContainer = findMoveContainer(event.target)
-      //   unexpandMoveContainer(moveContainer)
-      //   unselectMoveSequencePosition(moveContainer)
-      //   clearContents(moveContainer)
-      // }
       if (moveSequence.nextSibling) {
         moveContainer.insertBefore(newForm, moveSequence.nextSibling)
       } else {
@@ -444,7 +428,7 @@
     formContainer.appendChild(newForm)
   }
 
-  function editAnnotationSequencePosition(event) {
+  function editAnnotationSequencePosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -461,52 +445,114 @@
     const expandedSequence = expandSequence(moveContainer.annotationSequence, true)
     expandedSequence.pop()
     expandedSequence.shift()
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    formContainer.innerHTML = ''
     const editing = expandedSequence[position]
     if (event.target.innerHTML.startsWith('[%cal')) {
-      clearContents(moveContainer)
       const newForm = makeAnnotationArrowForm(moveContainer, '#edit-arrow-annotation-form')
-      const cancelButton = newForm.querySelector('.cancel-button')
-      cancelButton.onclick = (event) => {
-        event.preventDefault()
-        const moveContainer = findMoveContainer(event.target)
-        unexpandMoveContainer(moveContainer)
-        unselectMoveSequencePosition(moveContainer)
-        clearContents(moveContainer)
+      formContainer.appendChild(newForm)
+      let squareData = event.target.innerHTML.substring('[%cal '.length)
+      squareData = squareData.substring(0, squareData.indexOf(']'))
+      const pendingList = formContainer.querySelector('.pending-list')
+      const squares = squareData.split(',')
+      for (const square of squares) {
+        let color
+        switch (square[0]) {
+          case 'R':
+            color = 'red'
+            break
+          case 'G':
+            color = 'green'
+            break
+          case 'Y':
+            color = 'yellow'
+            break
+          case 'B':
+            color = 'blue'
+            break
+        }
+        const activeColorButton = formContainer.querySelector(`.${color}-arrow-button`)
+        const colorText = activeColorButton.innerHTML.substring(activeColorButton.innerHTML.indexOf('</i>') + 4)
+        const column = square[1]
+        const row = square[2]
+        const coordinate = `${column}${row}`
+        const cell = formContainer.querySelector(`.coordinate-${column}${row}`)
+        cell.classList.add(`${color}-square`)
+        const listItem = document.createElement('li')
+        listItem.innerHTML = `<span class="${color}">${colorText} <i>${coordinate}</i></span>`
+        const deleteButton = document.createElement('button')
+        deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete'
+        deleteButton.className = 'button annotation-form-button'
+        deleteButton.square = cell
+        deleteButton.color = color
+        deleteButton.onclick = deleteSquare
+        listItem.appendChild(deleteButton)
+        pendingList.appendChild(listItem)
       }
-      const formContainer = moveContainer.querySelector('.annotation-form-container')
-      formContainer.innerHTML = ''
-      return formContainer.appendChild(newForm)
+      const cancelButton = formContainer.querySelector('.cancel-button')
+      cancelButton.onclick = cancelAndCloseForm
+      return
     }
     if (event.target.innerHTML.startsWith('[%csl')) {
-      clearContents(moveContainer)
       const newForm = makeAnnotationSquareForm(moveContainer, '#edit-square-annotation-form')
-      const cancelButton = newForm.querySelector('.cancel-button')
-      cancelButton.onclick = (event) => {
-        event.preventDefault()
-        const moveContainer = findMoveContainer(event.target)
-        unexpandMoveContainer(moveContainer)
-        unselectMoveSequencePosition(moveContainer)
-        clearContents(moveContainer)
+      formContainer.appendChild(newForm)
+      let squareData = event.target.innerHTML.substring('[%cal '.length)
+      squareData = squareData.substring(0, squareData.indexOf(']'))
+      const pendingList = formContainer.querySelector('.pending-list')
+      const squares = squareData.split(',')
+      for (const square of squares) {
+        let color
+        switch (square.charAt(0)) {
+          case 'R':
+            color = 'red'
+            break
+          case 'G':
+            color = 'green'
+            break
+          case 'Y':
+            color = 'yellow'
+            break
+          case 'B':
+            color = 'blue'
+            break
+        }
+        const activeColorButton = formContainer.querySelector(`.${color}-square-button`)
+        const colorText = activeColorButton.innerHTML.substring(activeColorButton.innerHTML.indexOf('</i>') + 4)
+        const column = square[1]
+        const row = square[2]
+        const coordinate = `${column}${row}`
+        const cell = formContainer.querySelector(`.coordinate-${column}${row}`)
+        cell.classList.add(`${color}-square`)
+        const listItem = document.createElement('li')
+        listItem.innerHTML = `<span class="${color}">${colorText} <i>${coordinate}</i></span>`
+        const deleteButton = document.createElement('button')
+        deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete'
+        deleteButton.className = 'button annotation-form-button'
+        deleteButton.square = cell
+        deleteButton.color = color
+        deleteButton.onclick = deleteSquare
+        listItem.appendChild(deleteButton)
+        pendingList.appendChild(listItem)
       }
-      const formContainer = moveContainer.querySelector('.annotation-form-container')
-      formContainer.innerHTML = ''
-      return formContainer.appendChild(newForm)
+      const cancelButton = formContainer.querySelector('.cancel-button')
+      cancelButton.onclick = cancelAndCloseForm
+      return 
     }
     // a text block
     const newForm = makeAnnotationTextForm(moveContainer, '#edit-text-annotation-form')
     const textarea = newForm.querySelector('.annotation-text')
     textarea.value = editing
     const cancelButton = newForm.querySelector('.cancel-button')
-    cancelButton.onclick = (event) => {
-      event.preventDefault()
-      const moveContainer = findMoveContainer(event.target)
-      unexpandMoveContainer(moveContainer)
-      unselectMoveSequencePosition(moveContainer)
-      clearContents(moveContainer)
-    }
-    const formContainer = moveContainer.querySelector('.annotation-form-container')
-    formContainer.innerHTML = ''
+    cancelButton.onclick = cancelAndCloseForm
     formContainer.appendChild(newForm)
+  }
+
+  function cancelAndCloseForm (event) {
+    event.preventDefault()
+    const moveContainer = findMoveContainer(event.target)
+    unexpandMoveContainer(moveContainer)
+    unselectMoveSequencePosition(moveContainer)
+    clearContents(moveContainer)
   }
 
   function switchForm (event) {
@@ -546,13 +592,7 @@
     quizButton.formCreator = makeQuizForm
     quizButton.onclick = switchForm
     const cancelButton = form.querySelector('.cancel-button')
-    cancelButton.onclick = (event) => {
-      event.preventDefault()
-      const moveContainer = findMoveContainer(event.target)
-      unexpandMoveContainer(moveContainer)
-      unselectMoveSequencePosition(moveContainer)
-      clearContents(moveContainer)
-    }
+    cancelButton.onclick = cancelAndCloseForm
     return form
   }
 
@@ -563,7 +603,15 @@
     moveContainer.annotationSequence = annotationSequence || ['{}']
     moveContainer.appendChild(form)
     renderSequence(moveContainer.annotationSequence, moveSequence, true)
-    return makeAnnotationOptionSelector(moveContainer)
+    makeAnnotationOptionSelector(moveContainer)
+    console.log('moveSequence children', )
+    const preselectPosition = moveSequence.children.length === 5 ? moveSequence.children[2] : moveSequence.children[moveSequence.children.length - 2]
+    selectAnnotationSequencePosition({
+      target: preselectPosition
+    })
+    const cancelButton = moveContainer.querySelector('.cancel-button')
+    cancelButton.onclick = cancelAndCloseForm
+    return form
   }
 
   function makeAnnotationOptionSelector (moveContainer) {
@@ -574,10 +622,10 @@
     const editing = moveContainer.querySelector('.edit-position') ? true : false
     const insertAnnotationButton = formContainer.querySelector('.insert-annotation-button')
     insertAnnotationButton.onclick = addAnnotation
-    insertAnnotationButton.style.display = editing ? 'none' : 'block'
+    insertAnnotationButton.style.display = editing ? 'none' : 'inline-block'
     const updateAnnotationButton = formContainer.querySelector('.update-annotation-button')
     updateAnnotationButton.onclick = updateAnnotation
-    updateAnnotationButton.style.display = editing ? 'block' : 'none'
+    updateAnnotationButton.style.display = editing ? 'inline-block' : 'none'
     const cancelButton = formContainer.querySelector('.cancel-button')
     cancelButton.formCreator = makeInsertionTypeSelector
     cancelButton.onclick = switchForm
@@ -667,16 +715,56 @@
     return newForm
   }
 
-  function makeAnnotationSquareForm (moveContainer) {
+  function makeAnnotationSquareForm (moveContainer, templateid) {
     const formContainer = moveContainer.querySelector('.annotation-form-container')
-    const newForm = createForm('#new-square-annotation-form')
-    const chessboard = newForm.querySelector('.chessboard')
-    setupMiniChessBoard(chessboard, null, moveContainer.move)
+    const newForm = createForm(templateid || '#new-square-annotation-form')
     const cancelButton = newForm.querySelector('.cancel-button')
     cancelButton.formCreator = makeAnnotationTypeSelector
     cancelButton.formContainer = formContainer
     cancelButton.onclick = switchForm
+    if (templateid) {
+      const updateButton = newForm.querySelector('.update-squares-text-button')
+      updateButton.onclick = updateSquareText
+    } else {
+      const insertButton = newForm.querySelector('.insert-squares-text-button')
+      insertButton.onclick = insertSquareText
+    }
+    const colors = newForm.querySelectorAll('.square-color')
+    for (const color of colors) {
+      color.onclick = selectColor
+    }
+    const manualAddButton = newForm.querySelector('.highlight-square-button')
+    manualAddButton.onclick = manuallyAddSquare
+    const resetButton = newForm.querySelector('.reset-squares-button')
+    resetButton.onclick = (event) => {
+      if (event && event.preventDefault) {
+        event.preventDefault()
+      }
+      const chessBoard = (event ? findMoveContainer(event.target) : newForm).querySelector('.chessboard')
+      chessBoard.onclick = clickHighlightSquareCell
+      chessBoard.innerHTML = ''
+      setupMiniChessBoard(chessBoard, null, moveContainer.move)
+      const pendingList = (event ? findMoveContainer(event.target) : newForm).querySelector('.pending-list')
+      pendingList.innerHTML = ''
+    }
+    resetButton.onclick()
     return newForm
+  }
+
+  function manuallyAddSquare (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const chessboard = moveContainer.querySelector('.annotate-square-chessboard')
+    const column = document.querySelector('.select-column')
+    const row = document.querySelector('.select-row')
+    const coordinate = column.value + row.value
+    column.selectedIndex = 0
+    row.selectedIndex = 0
+    return clickHighlightSquareCell({
+      target: chessboard.querySelector(`.coordinate-${coordinate}`)
+    })
   }
 
   function makeAnnotationArrowForm (moveContainer) {
@@ -749,13 +837,14 @@
     const chessboard = moveContainer.querySelector('.annotate-arrow-chessboard')
     const colors = ['red', 'green', 'blue', 'yellow']
     let i = -1
-    let color
+    let color, activeColorButton
     const colorButtons = moveContainer.querySelectorAll('.arrow-color')
     for (const colorButton of colorButtons) {
       i++
       if (!colorButton.firstChild.classList.contains('fa-dot-circle')) {
         continue
       }
+      activeColorButton = colorButton
       color = colors[i]
       break
     }
@@ -771,7 +860,7 @@
     arrow.innerHTML += ''
     const pendingList = moveContainer.querySelector('.pending-arrow-list')
     const listItem = document.createElement('li')
-    listItem.innerHTML = `<span>${color} <i>${arrowStartingCoordinate}</i> to <i>${arrowEndingCoordinate}</i></span>`
+    listItem.innerHTML = `<span>${activeColorButton.innerHTML.substring(activeColorButton.innerHTML.indexOf('</i>') + 4)} <i>${arrowStartingCoordinate}</i> to <i>${arrowEndingCoordinate}</i></span>`
     const deleteButton = document.createElement('button')
     deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete'
     deleteButton.className = 'button annotation-form-button'
@@ -782,6 +871,9 @@
   }
 
   function deleteArrow (event) {
+    if (event.preventDefault) {
+      event.preventDefault()
+    }
     const button = event.target
     const listItem = button.parentNode
     const list = listItem.parentNode
@@ -839,17 +931,19 @@
   }
 
   function clickHighlightSquareCell (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
     const moveContainer = findMoveContainer(event.target)
     if (!moveContainer) {
       return
     }
-    event.preventDefault()
     if (event.target.tagName !== 'TD' && event.target.parentNode.tagName !== 'TD') {
       return
     }
     const colors = ['red', 'green', 'blue', 'yellow']
     let i = -1
-    let color
+    let color, activeColorButton
     const colorButtons = moveContainer.querySelectorAll('.square-color')
     for (const colorButton of colorButtons) {
       i++
@@ -857,6 +951,7 @@
         continue
       }
       color = colors[i]
+      activeColorButton = colorButton
       break
     }
     let coordinate
@@ -867,15 +962,26 @@
       coordinate = className.split('-')[1]
       break
     }
-    const cell = event.target.tagName === 'TD' ? event.target : event.target.parentNode
-    if (cell.classList.contains(`${color}-square`)) {
-      cell.classList.remove(`${color}-square`)
-    } else {
-      cell.classList.add(`${color}-square`)
-    }
     const pendingList = moveContainer.querySelector('.pending-square-list')
+    const cell = event.target.tagName === 'TD' ? event.target : event.target.parentNode
+    const colorText = activeColorButton.innerHTML.substring(activeColorButton.innerHTML.indexOf('</i>') + 4)
+    for (const colorid of colors) {
+      if (cell.classList.contains(`${colorid}-square`)) {
+        cell.classList.remove(`${colorid}-square`)
+        for (const child of pendingList.children) {
+          if (child.innerHTML.indexOf(colorid) === -1 || child.innerHTML.indexOf(coordinate) === -1) {
+            continue
+          }
+          pendingList.removeChild(child)
+        }
+        if (colorid === color) {
+          return
+        }
+      }
+    }
+    cell.classList.add(`${color}-square`)
     const listItem = document.createElement('li')
-    listItem.innerHTML = `<span>${color} <i>${coordinate}</i></span>`
+    listItem.innerHTML = `<span class="${color}">${colorText} <i>${coordinate}</i></span>`
     const deleteButton = document.createElement('button')
     deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete'
     deleteButton.className = 'button annotation-form-button'
@@ -886,7 +992,10 @@
     pendingList.appendChild(listItem)
   }
 
-  function deleteSquare(event) {
+  function deleteSquare (event) {
+    if (event.preventDefault) {
+      event.preventDefault()
+    }
     const button = event.target
     const listItem = button.parentNode
     const list = listItem.parentNode
@@ -1067,7 +1176,9 @@
   }
 
   function deleteAnnotationText (event) {
-    event.preventDefault()
+    if (event.preventDefault) {
+      event.preventDefault()
+    }
     const moveContainer = findMoveContainer(event.target)
     const moveSequence = moveContainer.querySelector('.move-sequence')
     const annotationSequence = moveContainer.querySelector('.annotation-sequence')
@@ -1100,7 +1211,9 @@
    * @returns 
    */
   function insertSquareText (event) {
-    event.preventDefault()
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
     const moveContainer = findMoveContainer(event.target)
     const colors = {
       red: [],
@@ -1120,13 +1233,13 @@
           break
         }
         if (cell.classList.contains('red-square')) {
-          colors.red.push(coordinate)          
+          colors.red.push(`R${coordinate}`)
         } else if (cell.classList.contains('blue-square')) {
-          colors.blue.push(coordinate)
+          colors.blue.push(`B${coordinate}`)
         } else if (cell.classList.contains('green-square')) {
-          colors.green.push(coordinate)
+          colors.green.push(`G${coordinate}`)
         } else if (cell.classList.contains('yellow-square')) {
-          colors.yellow.push(coordinate)
+          colors.yellow.push(`Y${coordinate}`)
         }
       }
     }
@@ -1135,22 +1248,105 @@
       if (!colors[color].length) {
         continue
       }
-      annotationParts.push(`[%csl ${color.charAt(0).toUpperCase()}${colors[color].join(',')}]`)
+      annotationParts.push(`[%csl ${colors[color].join(',')}]`)
     }
-    const annotationText = annotationParts.join('')
+    if (annotationParts.length) {
+      const annotationText = annotationParts.join('')
+      const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+      const annotationPosition = annotationSequence.querySelector('.selected-position')
+      annotationPosition.sequence.splice(annotationPosition.position, 0, ' ', annotationText)
+      moveContainer.annotationSequence = contractExpandedSequence(annotationPosition.sequence)
+      renderSequence(moveContainer.annotationSequence, annotationSequence, true)
+    }
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    formContainer.innerHTML = ''
+    return makeAnnotationOptionSelector(moveContainer)
+  }
+
+  function updateSquareText(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const colors = {
+      red: [],
+      green: [],
+      blue: [],
+      yellow: []
+    }
+    const squareChessBoard = moveContainer.querySelector('.annotate-square-chessboard')
+    for (const row of squareChessBoard.rows) {
+      for (const cell of row.cells) {
+        let coordinate
+        for (const className of cell.classList) {
+          if (!className.startsWith('coordinate-')) {
+            continue
+          }
+          coordinate = className.split('-')[1]
+          break
+        }
+        if (cell.classList.contains('red-square')) {
+          colors.red.push(`R${coordinate}`)
+        } else if (cell.classList.contains('blue-square')) {
+          colors.blue.push(`B${coordinate}`)
+        } else if (cell.classList.contains('green-square')) {
+          colors.green.push(`G${coordinate}`)
+        } else if (cell.classList.contains('yellow-square')) {
+          colors.yellow.push(`Y${coordinate}`)
+        }
+      }
+    }
+    let annotationParts = []
+    for (const color in colors) {
+      if (!colors[color].length) {
+        continue
+      }
+      annotationParts = annotationParts.concat(colors[color])
+    }
+    if (!annotationParts.length) {
+      return deleteSquareText(event)
+    }
+    const annotationText = `[%csl ${annotationParts.join(',') }]`
     const annotationSequence = moveContainer.querySelector('.annotation-sequence')
-    const selectedPosition = annotationSequence.querySelector('.selected-position')
-    const position = findElementChildIndex(selectedPosition)
-    const expandedSequence = expandSequence(moveContainer.annotationSequence)
-    expandedSequence.splice((position || 0) + 1, 0, ' ', annotationText)
-    moveContainer.annotationSequence = contractExpandedSequence(expandedSequence)
+    const annotationPosition = annotationSequence.querySelector('.edit-position')
+    annotationPosition.sequence[annotationPosition.position] = annotationText
+    moveContainer.annotationSequence = contractExpandedSequence(annotationPosition.sequence)
     renderSequence(moveContainer.annotationSequence, annotationSequence, true)
-    const resetSquareChessBoardButton = moveContainer.querySelector('.reset-squares-button')
-    resetSquareChessBoardButton.onclick({ target: resetSquareChessBoardButton })
+    const formContainer = moveContainer.querySelector('.annotation-form-container')
+    formContainer.innerHTML = ''
+    return makeAnnotationOptionSelector(moveContainer)
+  }
+
+  function deleteSquareText (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const moveSequence = moveContainer.querySelector('.move-sequence')
+    const annotationSequence = moveContainer.querySelector('.annotation-sequence')
+    const annotationPosition = annotationSequence.querySelector('.edit-position')
+    annotationPosition.sequence.splice(annotationPosition.position, 1)
+    moveContainer.annotationSequence = contractExpandedSequence(annotationPosition.sequence)
+    const movePosition = moveSequence.querySelector('.edit-position')
+    const expandedMoveSequence = expandSequence(moveContainer.move.sequence)
+    if (moveContainer.annotationSequence.length === 1 && moveContainer.annotationSequence[0] === '{}') {
+      delete (moveContainer.annotationSequence)
+      expandedMoveSequence.splice(movePosition.position, 1)
+      moveContainer.move.sequence = contractExpandedSequence(expandedMoveSequence)
+    } else {
+      expandedMoveSequence[movePosition.position - 1] = contractExpandedSequence(annotationPosition.sequence).join(' ')
+    }
+    annotationPosition.sequence = moveContainer.expandedSequence
+    renderSequence(moveContainer.move.sequence, moveSequence)
+    if (moveContainer.annotationSequence) {
+      renderSequence(moveContainer.annotationSequence, annotationSequence, true)
+    }
+    resetMoveContainerButtons(moveContainer)
     clearContents(moveContainer)
     unselectMoveSequencePosition(moveContainer)
     unexpandMoveContainer(moveContainer)
   }
+
 
   /**
    * adds [%cal] to the annotation
