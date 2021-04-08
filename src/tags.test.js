@@ -52,7 +52,7 @@ describe('tags', () => {
         const table = document.querySelector('.tags-table')
         table.rows[1].cells[0].firstChild.value = 'Test'
         table.rows[1].cells[1].firstChild.value = 'Test value'
-        regeneratePGNHeader()
+        window.regeneratePGNHeader()
       })
       await puppeteer.saveScreenshot(page, `${testName}-3.png`)
       const pgnButton = await puppeteer.getElement(page, 'PGN')
