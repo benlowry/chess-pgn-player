@@ -27,7 +27,7 @@ function close (page) {
   page.browser.close()
 }
 
-async function createBrowser(preloadPGN) {
+async function createBrowser (preloadPGN) {
   const launchOptions = {
     headless: true,
     args: [
@@ -43,13 +43,53 @@ async function createBrowser(preloadPGN) {
   if (process.env.CHROMIUM_EXECUTABLE) {
     launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
   }
+  const allDevices = require('puppeteer/lib/cjs/puppeteer/common/DeviceDescriptors.js')
+  const devices = [{
+    name: 'Desktop',
+    userAgent: 'Desktop browser',
+    viewport: {
+      width: 1920,
+      height: 1080,
+      deviceScaleFactor: 1,
+      isMobile: false,
+      hasTouch: false,
+      isLandscape: false
+    }
+  },
+  allDevices.devicesMap['iPad Pro'],
+  allDevices.devicesMap['iPad Mini'],
+  allDevices.devicesMap['Pixel 2 XL'],
+  allDevices.devicesMap['iPhone SE']
+  ]
   const puppeteer = require('puppeteer')
   const browser = await puppeteer.launch(launchOptions)
   const page = await browser.newPage()
   page.browser = browser
   await page.setDefaultTimeout(3600000)
   await page.setDefaultNavigationTimeout(3600000)
-  await page.goto('http://localhost:8080/player.html', { waitLoad: true, waitNetworkIdle: true })
+  let device
+  if (process.env.SCREENSHOT_DEVICE) {
+    for (const deviceInfo of devices) {
+      if (deviceInfo.name.toLowerCase() === process.env.SCREENSHOT_DEVICE.toLowerCase()) {
+        device = deviceInfo
+        break
+      }
+    }
+  } else {
+    device = devices[0]
+  }
+  if (process.env.SCREENSHOT_SCHEME) {
+    await page.emulateMediaFeatures([{
+      name: 'prefers-color-scheme',
+      value: process.env.SCREENSHOT_SCHEME
+    }])
+  }
+  await page.emulate(device)
+  if (process.env.SCREENSHOT_THEME) {
+    await page.goto(`http://localhost:8080/player.html?theme=${process.env.SCREENSHOT_THEME || 'default'}`, { waitLoad: true, waitNetworkIdle: true })
+  } else {
+    await page.goto('http://localhost:8080/player.html', { waitLoad: true, waitNetworkIdle: true })
+  }
   await page.waitForSelector('.timeline1')
   if (preloadPGN) {
     const pgnButton = await getElement(page, 'PGN')
@@ -70,9 +110,15 @@ async function createBrowser(preloadPGN) {
   return page
 }
 
-async function saveScreenshot(page, filename) {
+async function saveScreenshot (page, filename) {
+  let filePath
+  if (process.env.SCREENSHOT_PATH) {
+    filePath = path.join(process.env.SCREENSHOT_PATH, filename)
+  } else {
+    filePath = path.join(__dirname, '..', filename)
+  }
   await page.screenshot({
-    path: path.join(__dirname, '..', filename),
+    path: filePath,
     type: 'png'
   })
 }
@@ -95,7 +141,7 @@ async function clickNthPosition (page, identifier, nth) {
   }, identifier, nth)
 }
 
-async function getElement(page, identifier) {
+async function getElement (page, identifier) {
   let element
   if (identifier.startsWith('#')) {
     element = await page.$(identifier)
@@ -155,7 +201,7 @@ async function getElement(page, identifier) {
   }
 }
 
-async function evaluate(page, method, element) {
+async function evaluate (page, method, element) {
   const active = element || page
   while (true) {
     try {
@@ -167,7 +213,7 @@ async function evaluate(page, method, element) {
   }
 }
 
-async function getText(page, element) {
+async function getText (page, element) {
   return evaluate(page, (el) => {
     if (!el) {
       return ''
@@ -189,7 +235,7 @@ async function getText(page, element) {
   }, element)
 }
 
-async function getTags(page, tag) {
+async function getTags (page, tag) {
   while (true) {
     try {
       const links = await page.$$(tag)
