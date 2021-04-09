@@ -1,7 +1,8 @@
 ((exports) => {
-  exports.setupAnnotations = setupAnnotations
-  exports.refreshAnnotations = refreshAnnotations
   exports.expandAnnotationSequence = expandAnnotationSequence
+  exports.nextMoveNumber = nextMoveNumber
+  exports.refreshAnnotations = refreshAnnotations
+  exports.setupAnnotations = setupAnnotations
 
   let container, moveList, lastRenderedPGN, timeline
 
@@ -673,8 +674,11 @@
     }
     const hitArea = chessBoard.parentNode.querySelector('.alternative-moves-hitarea')
     hitArea.onmousedown = selectAlternativePiece
-    hitArea.onmouseup = insertAlternativeMove
+    hitArea.onmouseup = moveAlternativePiece
+    moveContainer.alternativeMoves = []
     setupMiniChessBoard(chessBoard, hitArea, previousMoveState, true)
+    const insertButton = newForm.querySelector('.insert-alternative-moves-button')
+    insertButton.onclick = insertAlternativeMove
     const cancelButton = newForm.querySelector('.cancel-button')
     cancelButton.formCreator = makeInsertionTypeSelector
     cancelButton.onclick = switchForm
@@ -685,6 +689,7 @@
     if (event && event.preventDefault) {
       event.preventDefault()
     }
+    console.log('selecting alternative piece')
     const moveContainer = findMoveContainer(event.target)
     const pieces = moveContainer.move.previousPieces
     const coordinate = event.target.className.split('-').pop()
@@ -694,6 +699,13 @@
     if ('12345678'.indexOf(coordinate[1]) === -1) {
       return
     }
+    let requiredColor
+    if (moveContainer.alternativeMoves && moveContainer.alternativeMoves.length) {
+      requiredColor = moveContainer.alternativeMoves[moveContainer.alternativeMoves.length - 1].color === 'w' ? 'b' : 'w'
+    } else {
+      requiredColor = moveContainer.move.color === 'w' ? 'w' : 'b'
+    }
+    console.log('got valid coordinate', coordinate)
     let selectedPiece
     for (const piece of pieces) {
       if (piece.coordinate === coordinate) {
@@ -701,14 +713,14 @@
         break
       }
     }
-    if (!selectedPiece || selectedPiece.color !== moveContainer.move.color) {
+    if (!selectedPiece || selectedPiece.color !== requiredColor) {
       delete (moveContainer.selectedPiece)
       return
     }
     moveContainer.selectedPiece = selectedPiece
   }
 
-  function insertAlternativeMove (event) {
+  function moveAlternativePiece (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -723,16 +735,85 @@
     if ('12345678'.indexOf(coordinate[1]) === -1) {
       return
     }
-    const pseudoMove = {
-      to: coordinate,
-      pieces: moveContainer.move.previousPieces
+    const alternativeMoves = moveContainer.alternativeMoves
+    let pieces, moveNumber, dots, color
+    if (alternativeMoves.length) {
+      pieces = alternativeMoves[alternativeMoves.length - 1].pieces
+      moveNumber = nextMoveNumber(alternativeMoves[alternativeMoves.length - 1])
+      dots = alternativeMoves[alternativeMoves.length - 1].color === 'w' ? '...' : '.'
+      color = moveContainer.alternativeMoves[moveContainer.alternativeMoves.length - 1].color === 'w' ? 'b' : 'w'
+    } else {
+      pieces = moveContainer.move.previousPieces
+      moveNumber = moveContainer.move.moveNumber
+      dots = moveContainer.move.color === 'w' ? '.' : '...'
+      color = moveContainer.move.color === 'w' ? 'w' : 'b'
     }
-    const movement = window.parser.calculatePieceMovement(moveContainer.selectedPiece, pseudoMove, pseudoMove.pieces)
+    const pseudoMove = {
+      color,
+      moveNumber,
+      to: coordinate,
+      pieces: JSON.parse(JSON.stringify(pieces)),
+      piece: moveContainer.selectedPiece
+    }
+    const movement = window.parser.calculatePieceMovement(pseudoMove.piece, pseudoMove, pseudoMove.pieces)
     if (!movement) {
       return
     }
-    const dots = moveContainer.move.color === 'w' ? '.' : '...'
-    const annotationText = `(${moveContainer.move.moveNumber}${dots}${coordinate})`
+    for (const piece of pseudoMove.pieces) {
+      if (piece.type === pseudoMove.piece.type && piece.coordinate === pseudoMove.piece.coordinate) {
+        piece.coordinate = coordinate
+        break
+      }
+    }
+    // todo:
+    // 1) captured pieces do not process
+    // 2) promoted pieces do not process
+    // 3) cannot move a piece two times
+    // 4) cannot add alternative moves to new alternative moves
+    // 5) inserted text is excesssively specific (1. Pee4 vs 1. e2 with type and column inferred)
+    // 6) cannot delete the last move in pending list
+    // 7) cannot "edit" existing alternative moves ie delete last or add next move
+    const chessBoard = moveContainer.querySelector('.alternative-moves-chessboard')
+    const cellBefore = chessBoard.querySelector(`.coordinate-${moveContainer.selectedPiece.coordinate}`)
+    const cellAfter = chessBoard.querySelector(`.coordinate-${coordinate}`)
+    cellAfter.style.backgroundImage = cellBefore.style.backgroundImage
+    cellBefore.style.backgroundImage = ''
+    alternativeMoves.push(pseudoMove)
+    const pendingList = moveContainer.querySelector('.pending-move-list')
+    const listItem = document.createElement('li')
+    listItem.innerHTML = `<span>${moveNumber}${dots} ${pseudoMove.piece.type} <i>${pseudoMove.piece.coordinate}</i> to <i>${coordinate}</i></span>`
+    pendingList.appendChild(listItem)
+  }
+
+  function nextMoveNumber (previousMove) {
+    const previousNumber = parseInt(previousMove.moveNumber, 10)
+    if (previousMove.color === 'w') {
+      return previousNumber
+    }
+    return previousNumber + 1
+  }
+
+  function insertAlternativeMove (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const moveContainer = findMoveContainer(event.target)
+    const pendingList = moveContainer.querySelector('.pending-move-list')
+    const annotationParts = []
+    for (const child of pendingList.children) {
+      let moveNumber = child.innerHTML.substring('<span>'.length)
+      moveNumber = moveNumber.substring(0, moveNumber.indexOf(' '))
+      let coordinate = child.innerHTML.substring(child.innerHTML.lastIndexOf('<i>') + 3)
+      coordinate = coordinate.substring(0, coordinate.indexOf('<'))
+      let coordinateBefore = child.innerHTML.substring(child.innerHTML.indexOf('<i>') + 3)
+      coordinateBefore = coordinateBefore[0]
+      let piece = child.innerHTML.substring(child.innerHTML.indexOf(' ') + 1)
+      piece = piece[0]
+      // TODO: this is a very verbose "1.Kde4" structure, it should be
+      // possible to calculate the smallest unambiguous expression
+      annotationParts.push(`${moveNumber}${piece}${coordinateBefore}${coordinate}`)
+    }
+    const annotationText = `(${annotationParts.join(' ')})`
     const sibling = window.parser.parseTurn(annotationText.substring(1, annotationText.length - 1))
     const selectedItem = moveContainer.querySelector('.selected-position')
     const expandedSequence = selectedItem.sequence
@@ -1649,7 +1730,7 @@
     return svg
   }
 
-  function setupMiniChessBoard (table, hitarea, move, movable) {
+  function setupMiniChessBoard (table, hitarea, move) {
     const rows = '87654321'.split('')
     const columns = 'abcdefgh'.split('')
     let white = false
@@ -1664,6 +1745,7 @@
         const cell = row.insertCell(row.cells.length)
         cell.className = `coordinate-${c}${r} chessboard-square ` + (white ? 'white-square' : 'black-square')
         cell.coordinate = `${c}${r}`
+        cell.style.backgroundSize = 'cover'
         white = !white
         if (r === '1') {
           cell.innerHTML = '<sub>' + c + '</sub>'
@@ -1682,7 +1764,6 @@
           }
           const color = piece.color === 'w' ? 'o' : 'b'
           cell.style.backgroundImage = `url(themes/${window.themeName}/${color}${piece.type}.png)`
-          cell.style.backgroundSize = 'cover'
         }
         if (!hitarea) {
           continue
