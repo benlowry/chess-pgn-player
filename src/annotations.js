@@ -1446,7 +1446,7 @@
     renderSequence(turnContainer.annotationSequence, annotationSequence, true)
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    const editing = !!turnComponents.querySelector('.edit-position')
+    const editing = !!turnContainer.querySelector('.edit-position')
     return makeAnnotationOptionSelector(formContainer, editing)
   }
 
@@ -1546,7 +1546,7 @@
     }
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    const editing = !!turnComponents.querySelector('.edit-position')
+    const editing = !!turnContainer.querySelector('.edit-position')
     return makeAnnotationOptionSelector(formContainer, editing)
   }
 
@@ -1684,7 +1684,7 @@
     }
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    const editing = !!turnComponents.querySelector('.edit-position')
+    const editing = !!turnContainer.querySelector('.edit-position')
     return makeAnnotationOptionSelector(formContainer, editing)
   }
 
