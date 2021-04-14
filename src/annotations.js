@@ -185,9 +185,12 @@
   }
 
   function renderTurns (turns, parent) {
+    if (turns === window.pgn.turns) {
+      timeline = 1
+    }
     for (const turn of turns) {
       let li
-      if (turn.turnContainer) {
+      if (turn.turnContainer && 2 === 1) {
         li = turn.turnContainer
         if (li.classList.contains('show-positioning')) {
           toggleEditOptions({ target: li.firstChild })
@@ -196,7 +199,7 @@
         li = createFromTemplate('#turn-components-template')
       }
       const sequence = li.querySelector('.turn-components')
-      renderSequence(turn.sequence, sequence, false, turn === turns[turns.length - 1])
+      renderSequence(turn.sequence, sequence, false)
       if (!li.parentNode) {
         parent.appendChild(li)
         li = turn.turnContainer = parent.lastElementChild
@@ -206,6 +209,12 @@
         li.classList.add('white-turn-link')
       } else {
         li.classList.add('black-turn-link')
+      }
+      const deleteLastTurnButton = li.querySelector('.delete-last-turn-button')
+      if (turn === turns[turns.length - 1]) {
+        deleteLastTurnButton.onclick = deleteLastTurn
+      } else {
+        deleteLastTurnButton.style.display = 'none'
       }
       if (!turn.siblings || !turn.siblings.length) {
         continue
@@ -222,7 +231,7 @@
     return timeline
   }
 
-  function renderSequence (sequence, container, insideSpacingOnly, isLastItem) {
+  function renderSequence (sequence, container, insideSpacingOnly) {
     container.innerHTML = ''
     const expandedSequence = expandSequence(sequence, !!insideSpacingOnly)
     if (insideSpacingOnly) {
@@ -271,9 +280,6 @@
         }
       } else {
         li.innerHTML = item
-      }
-      if (isLastItem) {
-        li.innerHMTL += ' <button class="button turn-location-button"><i class="fas fa-trash"></i></button>'
       }
     }
     return container
@@ -1319,8 +1325,58 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function deleteAnnotation () {
+  function deleteAnnotation (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+  }
 
+  function deleteLastTurn (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const turnContainer = findTurnContainer(event.target)
+    const deletingTurn = findTurn(turnContainer)
+    if (!deletingTurn.parentTurn) {
+      window.pgn.turns.splice(window.pgn.turns.indexOf(deletingTurn), 1)
+    } else {
+      for (const i in deletingTurn.parentTurn.siblings) {
+        const index = deletingTurn.parentTurn.siblings[i].indexOf(deletingTurn)
+        if (index === -1) {
+          continue
+        }
+        // remove the turn from the sibling
+        deletingTurn.parentTurn.siblings[i].splice(index, 1)
+        break
+      }
+      // update the parent sequence
+      const newSequence = [].concat(deletingTurn.parentTurn.sequence)
+      let siblingNumber = 0
+      for (const j in newSequence) {
+        if (!newSequence[j].startsWith('(')) {
+          continue
+        }
+        newSequence[j] = recombineNestedMoves(deletingTurn.parentTurn.siblings[siblingNumber])
+        siblingNumber++
+      }
+      proliferateChanges(deletingTurn.parentTurn, newSequence)
+      
+    }
+    turnContainer.parentNode.removeChild(turnContainer)
+    turnList.innerHTML = ''
+    renderTurns(window.pgn.turns, turnList)
+  }
+
+
+  function recombineNestedMoves (turnArray) {
+    if (!turnArray.length) {
+      return ''
+    }
+    const pgnParts = []
+    for (const turn of turnArray) {
+      pgnParts.push(turn.sequence.join(' '))
+    }
+    return '(' + parser.cleanSpacing(pgnParts.join(' ')) + ')'
   }
 
   /**
