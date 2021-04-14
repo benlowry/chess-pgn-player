@@ -1347,13 +1347,11 @@
         siblingNumber++
       }
       proliferateChanges(deletingTurn.parentTurn, newSequence)
-      
     }
     turnContainer.parentNode.removeChild(turnContainer)
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
-
 
   function recombineNestedMoves (turnArray) {
     if (!turnArray.length) {
@@ -1609,9 +1607,14 @@
     if (turnContainer.annotationSequence.length === 1 && turnContainer.annotationSequence[0] === '{}') {
       expandedTurnComponents.splice(turnPosition.position, 1)
       proliferateChanges(turn, contractExpandedSequence(expandedTurnComponents))
+      turnList.innerHTML = ''
+      renderTurns(window.pgn.turns, turnList)
+    } else {
+      renderSequence(turnContainer.annotationSequence, annotationSequence)
+      const formContainer = turnContainer.querySelector('.annotation-form-container')
+      formContainer.innerHTML = ''
+      return makeAnnotationOptionSelector(formContainer, true)
     }
-    turnList.innerHTML = ''
-    renderTurns(window.pgn.turns, turnList)
   }
 
   function proliferateChanges (turn, newSequence) {
@@ -1733,9 +1736,14 @@
     if (turnContainer.annotationSequence.length === 1 && turnContainer.annotationSequence[0] === '{}') {
       expandedTurnComponents.splice(turnPosition.position, 1)
       proliferateChanges(turn, contractExpandedSequence(expandedTurnComponents))
+      turnList.innerHTML = ''
+      renderTurns(window.pgn.turns, turnList)
+    } else {
+      renderSequence(turnContainer.annotationSequence, annotationSequence)
+      const formContainer = turnContainer.querySelector('.annotation-form-container')
+      formContainer.innerHTML = ''
+      return makeAnnotationOptionSelector(formContainer, true)
     }
-    turnList.innerHTML = ''
-    renderTurns(window.pgn.turns, turnList)
   }
 
   function drawArrow (firstCoordinate, lastCoordinate, chessboard, container) {
