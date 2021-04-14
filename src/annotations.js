@@ -1,7 +1,7 @@
 ((exports) => {
   exports.expandAnnotationSequence = expandAnnotationSequence
   exports.nextTurnNumber = nextTurnNumber
-  exports.proliferateChanges = proliferateChanges
+  exports.propogateChanges = propogateChanges
   exports.refreshAnnotations = refreshAnnotations
   exports.setupAnnotations = setupAnnotations
 
@@ -868,7 +868,7 @@
     const expandedSequence = expandSequence(turn.sequence)
     const position = selectedPosition.position
     expandedSequence.splice(position, 0, ' ', annotationText)
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1290,7 +1290,7 @@
       annotation = annotation.slice(1, annotation.length - 1)
     }
     expandedSequence.splice(position, 0, ' ', annotation)
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1307,7 +1307,7 @@
     const position = findElementChildIndex(editPosition)
     const expandedSequence = expandSequence(turn.sequence)
     expandedSequence[position - 1] = annotation
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1346,7 +1346,7 @@
         newSequence[j] = recombineNestedMoves(deletingTurn.parentTurn.siblings[siblingNumber])
         siblingNumber++
       }
-      proliferateChanges(deletingTurn.parentTurn, newSequence)
+      propogateChanges(deletingTurn.parentTurn, newSequence)
     }
     turnContainer.parentNode.removeChild(turnContainer)
     turnList.innerHTML = ''
@@ -1379,7 +1379,7 @@
     const expandedSequence = expandSequence(turn.sequence)
     const position = selectedPosition.position
     expandedSequence.splice(position, 0, ' ', nag)
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1393,7 +1393,7 @@
     const expandedSequence = expandSequence(turn.sequence)
     const newNag = turnContainer.querySelector('.nag-select').value
     expandedSequence[parseInt(selectedPosition.position, 10)] = newNag
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1406,7 +1406,7 @@
     const turn = findTurn(turnContainer)
     const expandedSequence = expandSequence(turn.sequence)
     expandedSequence.splice(parseInt(selectedPosition.position, 10), 1)
-    proliferateChanges(turn, contractExpandedSequence(expandedSequence))
+    propogateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1469,7 +1469,7 @@
     const expandedTurnComponents = expandSequence(turn.sequence)
     if (turnContainer.annotationSequence.length === 1 && turnContainer.annotationSequence[0] === '{}') {
       expandedTurnComponents.splice(turnPosition.position, 1)
-      proliferateChanges(turn, contractExpandedSequence(expandedTurnComponents))
+      propogateChanges(turn, contractExpandedSequence(expandedTurnComponents))
     }
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
@@ -1606,7 +1606,7 @@
     const expandedTurnComponents = expandSequence(turn.sequence)
     if (turnContainer.annotationSequence.length === 1 && turnContainer.annotationSequence[0] === '{}') {
       expandedTurnComponents.splice(turnPosition.position, 1)
-      proliferateChanges(turn, contractExpandedSequence(expandedTurnComponents))
+      propogateChanges(turn, contractExpandedSequence(expandedTurnComponents))
       turnList.innerHTML = ''
       renderTurns(window.pgn.turns, turnList)
     } else {
@@ -1617,7 +1617,7 @@
     }
   }
 
-  function proliferateChanges (turn, newSequence) {
+  function propogateChanges (turn, newSequence) {
     const oldPGNText = parser.cleanSpacing(turn.sequence.join(' '))
     const newPGNText = parser.cleanSpacing(newSequence.join(' '))
     let t = turn
@@ -1735,7 +1735,7 @@
     const turnPosition = turnComponents.querySelector('.edit-position')
     if (turnContainer.annotationSequence.length === 1 && turnContainer.annotationSequence[0] === '{}') {
       expandedTurnComponents.splice(turnPosition.position, 1)
-      proliferateChanges(turn, contractExpandedSequence(expandedTurnComponents))
+      propogateChanges(turn, contractExpandedSequence(expandedTurnComponents))
       turnList.innerHTML = ''
       renderTurns(window.pgn.turns, turnList)
     } else {

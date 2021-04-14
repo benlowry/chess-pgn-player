@@ -59,7 +59,7 @@ describe('annotations', () => {
     })
   })
 
-  describe('proliferateChanges', () => {
+  describe('propogateChanges', () => {
     it('should update turn sequence', async () => {
       const turn = {
         turnNumber: '1',
@@ -67,7 +67,7 @@ describe('annotations', () => {
         sequence: ['1.', 'a1', '$1']
       }
       const newSequence = ['{annotation}', '1.', 'a1', '$1']
-      annotations.proliferateChanges(turn, newSequence)
+      annotations.propogateChanges(turn, newSequence)
       for (const i in newSequence) {
         assert.strictEqual(turn.sequence[i], newSequence[i])
       }
@@ -86,7 +86,7 @@ describe('annotations', () => {
         parentTurn: parent
       }
       const newSequence = ['{annotation}', '1.', 'a1', '$1']
-      annotations.proliferateChanges(turn, newSequence)
+      annotations.propogateChanges(turn, newSequence)
       for (const i in newSequence) {
         assert.strictEqual(turn.sequence[i], newSequence[i])
       }
@@ -111,7 +111,7 @@ describe('annotations', () => {
         parentTurn: parent
       }
       const newSequence = ['{annotation}', '1.', 'a1', '$1']
-      annotations.proliferateChanges(turn, newSequence)
+      annotations.propogateChanges(turn, newSequence)
       // check turn
       for (const i in newSequence) {
         assert.strictEqual(turn.sequence[i], newSequence[i])
