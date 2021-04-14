@@ -19,7 +19,6 @@ window.refreshHeader = () => {
     properties.push('Result')
   }
   for (const property of properties) {
-    console.log('hader property', property)
     const element = document.querySelector(`.header-${property.toLowerCase()}`)
     if (!element) {
       continue

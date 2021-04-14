@@ -50,20 +50,10 @@ window.onload = function () {
     window.pieces = JSON.parse(window.defaultPieces)
     window.pgnRaw = pgnFileData
     try {
-      console.log('parsing pgn', pgnFileData)
       window.pgn = window.parser.parse(pgnFileData)
-      console.log('parsed pgn', window.pgn)
     } catch (error) {
-      console.log(error)
       return errorMessage(error.message)
     }
-    // try {
-    //   window.processPGNBoardStates(window.pgn, window.pieces)
-    //   console.log('processed pgn', window.pgn)
-    // } catch (error) {
-    //   console.log(error)
-    //   return errorMessage(error.message)
-    // }
     window.turns = window.pgn.turns
     if (!window.components || !window.components.length) {
       const allComponents = [
@@ -80,14 +70,9 @@ window.onload = function () {
       for (const component of allComponents) {
         const element = document.getElementsByClassName(component.name)
         if (!element || !component.setup) {
-          console.log('not using component ' + component.name)
           continue
         }
-        try {
-          component.setup()
-        } catch (error) {
-          console.log('error setting up component', error)
-        }
+        component.setup()
         window.components.push(component)
       }
       window.addEventListener('refresh', refresh)
@@ -110,12 +95,7 @@ window.onload = function () {
     }
     for (const component of window.components) {
       if (component.refresh) {
-        try {
-          component.refresh(event)
-        } catch (error) {
-          console.log('failed to refresh', component.name, error.message)
-          console.log(error)
-        }
+        component.refresh(event)
       }
     }
   }

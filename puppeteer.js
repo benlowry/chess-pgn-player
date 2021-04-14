@@ -123,22 +123,44 @@ async function saveScreenshot (page, filename) {
   })
 }
 
-async function clickNthEditButton (page, identifier, nth) {
-  return page.evaluate((identifier, nth) => {
-    const buttons = document.querySelector(identifier).querySelectorAll('.move-option-button')
+async function clickNthEditButton (page, identifier, nth, child, grandChild, greatGrandChild) {
+  return page.evaluate((identifier, nth, child, grandChild, greatGrandChild) => {
+    let list = document.querySelector(identifier)
+    if (child !== undefined && child > -1) {
+      list = list.children[child].querySelector('.turn-list')
+      if (grandChild !== undefined && grandChild > -1) {
+        list = list.children[grandChild].querySelector('.turn-list')
+        if (greatGrandChild !== undefined && greatGrandChild > -1) {
+          list = list.children[greatGrandChild].querySelector('.turn-list')
+        }
+      }
+    }
+
+    const buttons = list.querySelectorAll('.turn-option-button')
     buttons[nth].onclick({
       target: buttons[nth]
     })
-  }, identifier, nth)
+  }, identifier, nth, child, grandChild, greatGrandChild)
 }
 
-async function clickNthPosition (page, identifier, nth) {
-  return page.evaluate((identifier, nth) => {
-    const list = document.querySelector(identifier)
-    list.children[nth].onmousedown({
-      target: list.children[nth]
+async function clickNthPosition (page, identifier, nth, child, grandChild, greatGrandChild) {
+  return page.evaluate((identifier, nth, child, grandChild, greatGrandChild) => {
+    let list = document.querySelector('.turn-list')
+    if (child !== undefined && child > -1) {
+      list = list.children[child].querySelector('.turn-list')
+      if (grandChild !== undefined && grandChild > -1) {
+        list = list.children[grandChild].querySelector('.turn-list')
+        if (greatGrandChild !== undefined && greatGrandChild > -1) {
+          list = list.children[greatGrandChild].querySelector('.turn-list')
+        }
+      }
+    }
+    list = list.querySelector(identifier)
+    const item = list.children[nth]
+    item.onmousedown({
+      target: item
     })
-  }, identifier, nth)
+  }, identifier, nth, child, grandChild, greatGrandChild)
 }
 
 async function getElement (page, identifier) {
