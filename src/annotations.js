@@ -1446,7 +1446,8 @@
     renderSequence(turnContainer.annotationSequence, annotationSequence, true)
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    return makeAnnotationOptionSelector(formContainer)
+    const editing = !!turnComponents.querySelector('.edit-position')
+    return makeAnnotationOptionSelector(formContainer, editing)
   }
 
   function updateAnnotationText (event) {
@@ -1545,7 +1546,8 @@
     }
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    return makeAnnotationOptionSelector(formContainer)
+    const editing = !!turnComponents.querySelector('.edit-position')
+    return makeAnnotationOptionSelector(formContainer, editing)
   }
 
   function updateSquareText (event) {
@@ -1682,7 +1684,8 @@
     }
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     formContainer.innerHTML = ''
-    return makeAnnotationOptionSelector(formContainer)
+    const editing = !!turnComponents.querySelector('.edit-position')
+    return makeAnnotationOptionSelector(formContainer, editing)
   }
 
   function updateArrowText (event) {
