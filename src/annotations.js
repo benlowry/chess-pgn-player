@@ -862,6 +862,8 @@
       child.parentTurn = turn
       parser.processTurn(child, sibling, pieces)
     }
+    turn.siblings = turn.siblings || []
+    turn.siblings.push(sibling)
     const selectedPosition = turnContainer.querySelector('.selected-position')
     const expandedSequence = expandSequence(turn.sequence)
     const position = selectedPosition.position
@@ -869,21 +871,6 @@
     proliferateChanges(turn, contractExpandedSequence(expandedSequence))
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
-    const turnComponents = turnContainer.querySelector('.turn-components')
-    renderSequence(turn.sequence, turnComponents)
-    resetTurnContainerButtons(turnContainer)
-    const turnForms = turnContainer.querySelector('.turn-forms')
-    turnForms.innerHTML = ''
-    unselectTurnComponentsPosition(turnContainer)
-    unexpandTurnContainer(turnContainer)
-    timeline++
-    let ul = createFromTemplate('#sibling-components-template')
-    turnContainer.appendChild(ul)
-    ul = turnContainer.lastElementChild
-    ul.className = `turn-list timeline${timeline}`
-    turn.siblings = turn.siblings || []
-    turn.siblings.push(sibling)
-    renderTurns(sibling, ul)
   }
 
   function makeQuizForm () {
