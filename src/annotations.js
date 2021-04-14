@@ -364,10 +364,6 @@
       turnForms.appendChild(newForm)
       return setupAnnotationEditor(turnContainer)
     }
-    // TODO: editing alternative moves
-    if (selectedPosition.innerHTML.startsWith('(')) {
-      console.log('edit nag...')
-    }
   }
 
   function selectAnnotationSequencePosition(event) {
