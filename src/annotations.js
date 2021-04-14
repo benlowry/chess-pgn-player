@@ -10,7 +10,7 @@
   if (typeof require !== 'undefined') {
     parser = require('pgn-parser')
   }
-  function setupAnnotations() {
+  function setupAnnotations () {
     container = document.querySelector('.annotations-container')
     turnList = document.querySelector('.turn-list')
     document.onmousedown = startHighlightArrow
@@ -21,7 +21,7 @@
     }
   }
 
-  function refreshAnnotations() {
+  function refreshAnnotations () {
     if (!turnList || container.style.display === 'none') {
       return
     }
@@ -39,7 +39,7 @@
     }
   }
 
-  function expandSequence(sequence, expandAnnotations) {
+  function expandSequence (sequence, expandAnnotations) {
     const expanded = [' ']
     for (const item of sequence) {
       if (!expandAnnotations || !item.startsWith('{')) {
@@ -54,7 +54,7 @@
     return expanded
   }
 
-  function findClosingBracket(index, array) {
+  function findClosingBracket (index, array) {
     let openParantheses = 0
     let openSquare = 0
     let openBrace = 0
@@ -98,7 +98,7 @@
     return finish
   }
 
-  function expandAnnotationSequence(annotationSequence) {
+  function expandAnnotationSequence (annotationSequence) {
     if (annotationSequence === '{}') {
       return ['{', '}']
     }
@@ -140,7 +140,7 @@
     return lineParts
   }
 
-  function firstInterruption(text) {
+  function firstInterruption (text) {
     const nextBrace = text.indexOf('{')
     const nextParanthesis = text.indexOf('(')
     const nextSquare = text.indexOf('[')
@@ -167,7 +167,7 @@
     return valid[0].value
   }
 
-  function contractExpandedSequence(sequence) {
+  function contractExpandedSequence (sequence) {
     let joined = sequence.join(' ').trim()
     while (joined.indexOf('  ') > -1) {
       joined = joined.split('  ').join(' ')
@@ -184,7 +184,7 @@
     return parser.tokenizeLine(joined)
   }
 
-  function renderTurns(turns, parent) {
+  function renderTurns (turns, parent) {
     for (const turn of turns) {
       let li
       if (turn.turnContainer) {
@@ -196,7 +196,7 @@
         li = createFromTemplate('#turn-components-template')
       }
       const sequence = li.querySelector('.turn-components')
-      renderSequence(turn.sequence, sequence)
+      renderSequence(turn.sequence, sequence, false, turn === turns[turns.length - 1])
       if (!li.parentNode) {
         parent.appendChild(li)
         li = turn.turnContainer = parent.lastElementChild
@@ -222,7 +222,7 @@
     return timeline
   }
 
-  function renderSequence(sequence, container, insideSpacingOnly) {
+  function renderSequence (sequence, container, insideSpacingOnly, isLastItem) {
     container.innerHTML = ''
     const expandedSequence = expandSequence(sequence, !!insideSpacingOnly)
     if (insideSpacingOnly) {
@@ -272,11 +272,14 @@
       } else {
         li.innerHTML = item
       }
+      if (isLastItem) {
+        li.innerHMTL += ' <button class="button turn-location-button"><i class="fas fa-trash"></i></button>'
+      }
     }
     return container
   }
 
-  function selectTurnComponentsPosition(event) {
+  function selectTurnComponentsPosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -317,7 +320,7 @@
     turnForms.appendChild(newForm)
   }
 
-  function editTurnComponentsPosition(event) {
+  function editTurnComponentsPosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -366,7 +369,7 @@
     }
   }
 
-  function selectAnnotationSequencePosition(event) {
+  function selectAnnotationSequencePosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -408,7 +411,7 @@
     formContainer.appendChild(newForm)
   }
 
-  function editAnnotationSequencePosition(event) {
+  function editAnnotationSequencePosition (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -538,7 +541,7 @@
     formContainer.appendChild(newForm)
   }
 
-  function cancelAndCloseForm(event) {
+  function cancelAndCloseForm (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const turnForms = turnContainer.querySelector('.turn-forms')
@@ -547,7 +550,7 @@
     unselectTurnComponentsPosition(turnContainer)
   }
 
-  function switchForm(event) {
+  function switchForm (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -567,7 +570,7 @@
     }
   }
 
-  function makeInsertionTypeSelector() {
+  function makeInsertionTypeSelector () {
     const template = document.querySelector('#insertion-form-selector')
     const form = document.importNode(template.content, true)
     const nagButton = form.querySelector('.nag-button')
@@ -588,7 +591,7 @@
     return form
   }
 
-  function makeAnnotationEditor(turnContainer, annotationSequence) {
+  function makeAnnotationEditor (turnContainer, annotationSequence) {
     const form = createFromTemplate('#annotation-editor')
     const turnComponents = turnContainer.querySelector('.turn-components')
     const annotationComponents = form.querySelector('.annotation-components')
@@ -602,7 +605,7 @@
     return form
   }
 
-  function setupAnnotationEditor(turnContainer) {
+  function setupAnnotationEditor (turnContainer) {
     const annotationComponents = turnContainer.querySelector('.annotation-components')
     const preselectPosition = annotationComponents.children.length === 5 ? annotationComponents.children[2] : annotationComponents.children[annotationComponents.children.length - 2]
     selectAnnotationSequencePosition({
@@ -610,7 +613,7 @@
     })
   }
 
-  function makeAnnotationOptionSelector(formContainer, editing) {
+  function makeAnnotationOptionSelector (formContainer, editing) {
     const form = createFromTemplate('#annotation-editor-options')
     formContainer.innerHTML = ''
     formContainer.appendChild(form)
@@ -626,7 +629,7 @@
     return form
   }
 
-  function makeAnnotationTypeSelector(turnContainer) {
+  function makeAnnotationTypeSelector (turnContainer) {
     const form = createFromTemplate('#annotation-type-selector')
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     const addTextButton = form.querySelector('.add-text-button')
@@ -647,7 +650,7 @@
     return form
   }
 
-  function makeNagForm(eventOrTemplate) {
+  function makeNagForm (eventOrTemplate) {
     const template = eventOrTemplate && eventOrTemplate.substring ? eventOrTemplate : '#new-nag-form'
     const newForm = createFromTemplate(template)
     const nagIndex = document.querySelector('#nag-index')
@@ -671,7 +674,7 @@
     return newForm
   }
 
-  function makeAlternativeTurnsForm(turnContainer) {
+  function makeAlternativeTurnsForm (turnContainer) {
     const turn = findTurn(turnContainer)
     const newForm = createFromTemplate('#new-alternative-moves-form')
     const chessBoard = newForm.querySelector('.chessboard')
@@ -694,7 +697,7 @@
     return newForm
   }
 
-  function selectAlternativePiece(event) {
+  function selectAlternativePiece (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -729,7 +732,7 @@
     turnContainer.selectedPiece = selectedPiece
   }
 
-  function turnAlternativePiece(event) {
+  function turnAlternativePiece (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -795,7 +798,7 @@
     pendingList.style.display = ''
   }
 
-  function undoLastPendingTurn(event) {
+  function undoLastPendingTurn (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -814,7 +817,7 @@
     }
   }
 
-  function nextTurnNumber(previousTurn) {
+  function nextTurnNumber (previousTurn) {
     const previousNumber = parseInt(previousTurn.moveNumber, 10)
     if (previousTurn.color === 'w') {
       return previousNumber
@@ -822,7 +825,7 @@
     return previousNumber + 1
   }
 
-  function insertAlternativeTurn(event) {
+  function insertAlternativeTurn (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -877,7 +880,7 @@
     renderTurns(sibling, ul)
   }
 
-  function makeQuizForm() {
+  function makeQuizForm () {
     const newForm = createFromTemplate('#new-quiz-form')
     const cancelButton = newForm.querySelector('.cancel-button')
     cancelButton.formCreator = makeInsertionTypeSelector
@@ -885,7 +888,7 @@
     return newForm
   }
 
-  function makeAnnotationTextForm(turnContainer, template) {
+  function makeAnnotationTextForm (turnContainer, template) {
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     const newForm = createFromTemplate(template || '#new-text-annotation-form')
     const insertTextButton = newForm.querySelector('.insert-text-button')
@@ -907,7 +910,7 @@
     return newForm
   }
 
-  function makeAnnotationSquareForm(turnContainer, templateid) {
+  function makeAnnotationSquareForm (turnContainer, templateid) {
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     const newForm = createFromTemplate(templateid || '#new-square-annotation-form')
     const cancelButton = newForm.querySelector('.cancel-button')
@@ -945,7 +948,7 @@
     return newForm
   }
 
-  function manuallyAddSquare(event) {
+  function manuallyAddSquare (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -961,7 +964,7 @@
     })
   }
 
-  function makeAnnotationArrowForm(turnContainer, templateid) {
+  function makeAnnotationArrowForm (turnContainer, templateid) {
     const formContainer = turnContainer.querySelector('.annotation-form-container')
     const newForm = createFromTemplate(templateid || '#new-arrow-annotation-form')
     const cancelButton = newForm.querySelector('.cancel-button')
@@ -1000,7 +1003,7 @@
     return newForm
   }
 
-  function manuallyAddArrow(event) {
+  function manuallyAddArrow (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1024,13 +1027,13 @@
     })
   }
 
-  function createFromTemplate(templateid) {
+  function createFromTemplate (templateid) {
     const template = document.querySelector(templateid)
     const newForm = document.importNode(template.content, true)
     return newForm
   }
 
-  function startHighlightArrow(event) {
+  function startHighlightArrow (event) {
     const turnContainer = findTurnContainer(event.target)
     if (!turnContainer) {
       return
@@ -1053,7 +1056,7 @@
     turnContainer.startingCoordinate = arrowStartingCoordinate
   }
 
-  function stopHighlightArrow(event) {
+  function stopHighlightArrow (event) {
     const turnContainer = findTurnContainer(event.target)
     if (!turnContainer) {
       return
@@ -1114,7 +1117,7 @@
     pendingList.appendChild(listItem)
   }
 
-  function deleteArrow(event) {
+  function deleteArrow (event) {
     if (event.preventDefault) {
       event.preventDefault()
     }
@@ -1126,7 +1129,7 @@
     arrow.parentNode.removeChild(arrow)
   }
 
-  function previewHighlightArrow(event) {
+  function previewHighlightArrow (event) {
     const turnContainer = findTurnContainer(event.target)
     if (!turnContainer) {
       return
@@ -1174,7 +1177,7 @@
     arrow.innerHTML += ''
   }
 
-  function clickHighlightSquareCell(event) {
+  function clickHighlightSquareCell (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1236,7 +1239,7 @@
     pendingList.appendChild(listItem)
   }
 
-  function deleteSquare(event) {
+  function deleteSquare (event) {
     if (event.preventDefault) {
       event.preventDefault()
     }
@@ -1248,7 +1251,7 @@
     square.classList.remove(`${event.target.color}-square`)
   }
 
-  function selectColor(event) {
+  function selectColor (event) {
     event.preventDefault()
     const buttonList = event.target.parentNode
     for (const button of buttonList.children) {
@@ -1262,7 +1265,7 @@
     }
   }
 
-  function toggleEditOptions(event) {
+  function toggleEditOptions (event) {
     const turnContainer = findTurnContainer(event.target)
     if (turnContainer.classList.contains('show-positioning')) {
       unexpandTurnContainer(turnContainer)
@@ -1279,7 +1282,7 @@
    * @param {} event
    * @returns
    */
-  function addAnnotation(event) {
+  function addAnnotation (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     let annotation = turnContainer.annotationSequence.join(' ')
@@ -1299,7 +1302,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function updateAnnotation(event) {
+  function updateAnnotation (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const turn = findTurn(turnContainer)
@@ -1316,7 +1319,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function deleteAnnotation() {
+  function deleteAnnotation () {
 
   }
 
@@ -1325,7 +1328,7 @@
    * @param {} event
    * @returns
    */
-  function addNag(event) {
+  function addNag (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const nag = turnContainer.querySelector('.nag-select').value
@@ -1340,7 +1343,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function updateNag(event) {
+  function updateNag (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const turnComponents = turnContainer.querySelector('.turn-components')
@@ -1354,7 +1357,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function deleteNag(event) {
+  function deleteNag (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const turnComponents = turnContainer.querySelector('.turn-components')
@@ -1408,7 +1411,7 @@
     return makeAnnotationOptionSelector(formContainer, true)
   }
 
-  function deleteAnnotationText(event) {
+  function deleteAnnotationText (event) {
     if (event.preventDefault) {
       event.preventDefault()
     }
@@ -1435,7 +1438,7 @@
    * @param {*} event
    * @returns
    */
-  function insertSquareText(event) {
+  function insertSquareText (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1489,7 +1492,7 @@
     return makeAnnotationOptionSelector(formContainer)
   }
 
-  function updateSquareText(event) {
+  function updateSquareText (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1544,7 +1547,7 @@
     return makeAnnotationOptionSelector(formContainer, true)
   }
 
-  function deleteSquareText(event) {
+  function deleteSquareText (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1566,7 +1569,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function proliferateChanges(turn, newSequence) {
+  function proliferateChanges (turn, newSequence) {
     const oldPGNText = parser.cleanSpacing(turn.sequence.join(' '))
     const newPGNText = parser.cleanSpacing(newSequence.join(' '))
     let t = turn
@@ -1588,7 +1591,7 @@
    * @param {} event
    * @returns
    */
-  function insertArrowText(event) {
+  function insertArrowText (event) {
     event.preventDefault()
     const turnContainer = findTurnContainer(event.target)
     const colors = {
@@ -1626,7 +1629,7 @@
     return makeAnnotationOptionSelector(formContainer)
   }
 
-  function updateArrowText(event) {
+  function updateArrowText (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1667,7 +1670,7 @@
     return makeAnnotationOptionSelector(formContainer, true)
   }
 
-  function deleteArrowText(event) {
+  function deleteArrowText (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -1689,7 +1692,7 @@
     renderTurns(window.pgn.turns, turnList)
   }
 
-  function drawArrow(firstCoordinate, lastCoordinate, chessboard, container) {
+  function drawArrow (firstCoordinate, lastCoordinate, chessboard, container) {
     if (!firstCoordinate || !lastCoordinate || !chessboard) {
       return
     }
@@ -1751,7 +1754,7 @@
     return svg
   }
 
-  function setupMiniChessBoard(table, hitarea, turn) {
+  function setupMiniChessBoard (table, hitarea, turn) {
     const rows = '87654321'.split('')
     const columns = 'abcdefgh'.split('')
     let white = false
@@ -1798,7 +1801,7 @@
     }
   }
 
-  function expandTurnContainer(turnContainer) {
+  function expandTurnContainer (turnContainer) {
     turnContainer.classList.add('show-positioning')
     const circle = turnContainer.querySelector('.fa-edit')
     if (circle) {
@@ -1807,7 +1810,7 @@
     }
   }
 
-  function unexpandTurnContainer(turnContainer) {
+  function unexpandTurnContainer (turnContainer) {
     turnContainer.classList.remove('show-positioning')
     const circle = turnContainer.querySelector('.fa-minus-circle')
     if (circle) {
@@ -1816,7 +1819,7 @@
     }
   }
 
-  function unselectTurnComponentsPosition(turnContainer) {
+  function unselectTurnComponentsPosition (turnContainer) {
     turnContainer.classList.remove('show-positioning')
     const list = turnContainer.querySelector('.turn-components')
     for (const child of list.children) {
@@ -1831,7 +1834,7 @@
     }
   }
 
-  function resetTurnContainerButtons(turnContainer) {
+  function resetTurnContainerButtons (turnContainer) {
     const toggleInsertionSpacesButton = document.createElement('button')
     toggleInsertionSpacesButton.className = 'button turn-option-button'
     toggleInsertionSpacesButton.innerHTML = '<i class="fas fa-edit"></i>'
@@ -1844,7 +1847,7 @@
     sequence.insertBefore(showSpacing, sequence.firstChild)
   }
 
-  function findTurnContainer(element) {
+  function findTurnContainer (element) {
     let turnContainer = element.parentNode
     while (turnContainer && turnContainer.classList && !turnContainer.classList.contains('turn-list-item')) {
       turnContainer = turnContainer.parentNode
@@ -1852,7 +1855,7 @@
     return turnContainer
   }
 
-  function findTurn(turnContainer, turns) {
+  function findTurn (turnContainer, turns) {
     turns = turns || window.pgn.turns
     for (const turn of turns) {
       if (turn.turnContainer === turnContainer) {
@@ -1870,7 +1873,7 @@
     }
   }
 
-  function findElementChildIndex(selectedPosition) {
+  function findElementChildIndex (selectedPosition) {
     if (!selectedPosition) {
       return -1
     }

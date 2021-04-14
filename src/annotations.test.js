@@ -60,13 +60,13 @@ describe('annotations', () => {
   })
 
   describe('proliferateChanges', () => {
-    it('should update turn sequence', async () =>  {
+    it('should update turn sequence', async () => {
       const turn = {
         turnNumber: '1',
         color: 'w',
-        sequence: [ '1.', 'a1', '$1' ]
+        sequence: ['1.', 'a1', '$1']
       }
-      const newSequence = [ '{annotation}', '1.', 'a1', '$1']
+      const newSequence = ['{annotation}', '1.', 'a1', '$1']
       annotations.proliferateChanges(turn, newSequence)
       for (const i in newSequence) {
         assert.strictEqual(turn.sequence[i], newSequence[i])
