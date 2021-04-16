@@ -945,43 +945,45 @@
       }
       lastMoveNumber = moveNumber
     }
-    const moveData = parser.tokenizeLines(annotationParts.join(' '))
-    const newSibling = parser.parseRecursively(moveData)
     turn.parentTurn.siblings = turn.parentTurn.siblings || []
-    let parentSibling, parentSiblingPGN
-    for (const i in turn.parentTurn.siblings) {
-      const sibling = turn.parentTurn.siblings[i]
-      if (sibling.indexOf(turn) > -1) {
-        parentSibling = sibling
-        const pgnParts = []
-        for (const child of sibling) {
-          pgnParts.push(child.sequence.join(' '))
-        }
-        parentSiblingPGN = '(' + parser.cleanSpacing(pgnParts.join(' ')) + ')'
-        break
-      }
-    }
-    while (parentSibling.length > newSibling.length) {
-      parentSibling.pop()
-    }
-    for (const i in newSibling) {
-      const newTurn = newSibling[i]
-      const oldTurn = parentSibling.length > i ? parentSibling[i] : null
-      if (oldTurn && oldTurn.to === newTurn.to && oldTurn.type === newTurn.type) {
+    let parentSiblingPGN
+    for (const sibling of turn.parentTurn.siblings) {
+      if (sibling.indexOf(turn) === -1) {
         continue
       }
-      parentSibling[i] = newTurn
+      const pgnParts = []
+      for (const child of sibling) {
+        pgnParts.push(child.sequence.join(' '))
+      }
+      parentSiblingPGN = '(' + parser.cleanSpacing(pgnParts.join(' ')) + ')'
+      break
     }
-    const oldSequence = []
-    for (const i in turn.parentTurn.sequence) {
-      if (turn.parentTurn.sequence[i] === parentSiblingPGN) {
-        oldSequence.push(`(${parser.cleanSpacing(annotationParts.join(' '))})`)
-      } else {
-        oldSequence.push(turn.parentTurn.sequence[i])
+    // find the sequence part to update
+    const moveLists = Array.from(turn.parentTurn.turnContainer.querySelectorAll('.turn-list'))
+    const moveIndex = moveLists.indexOf(turn.turnContainer.parentNode)
+    let currentIndex = 0
+    let currentMoveIndex = 0
+    while (true) {
+      if (currentIndex === turn.parentTurn.sequence.length) {
+        break
+      }
+      if (!turn.parentTurn.sequence[currentIndex].startsWith('(')) {
+        currentIndex++
+        continue
+      }
+      if (currentMoveIndex === moveIndex) {
+        turn.parentTurn.sequence[currentIndex] = parentSiblingPGN
+        break
+      }
+      currentMoveIndex++
+      currentIndex++
+    }
+    propogateChanges(turn.parentTurn, parser.tokenizeLine(turn.parentTurn.sequence.join(' ')))
+    for (const sibling of turn.parentTurn.siblings) {
+      for (const child of sibling) {
+        child.parentTurn = turn.parentTurn
       }
     }
-    propogateChanges(turn.parentTurn, parser.tokenizeLine(parentSiblingPGN))
-    turnContainer.parentNode.removeChild(turnContainer)
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }

@@ -1053,7 +1053,7 @@ $0 1.$1 e4 $2 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.N
       }
     })
 
-    it('should add to alternative move', async () => {
+    it('should add alternative move to alternative move', async () => {
       const testName = 'insert-alternative-moves-within-alternative-moves'
       const page = await puppeteer.createBrowser(`[Event "Wch27"]
 
@@ -1116,6 +1116,70 @@ $0 1.$1 e4 $2 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.N
       const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
       const moves = content.substring(content.indexOf(']\n\n') + 3)
       assert.strictEqual(true, moves.startsWith('1.(1.Pdd4 (1.Pdd4)) e4'))
+      await page.close()
+      await page.browser.close()
+    })
+
+    it('should add additional move to alternative move', async () => {
+      const testName = 'insert-additional-move-within-alternative-moves'
+      const page = await puppeteer.createBrowser(`[Event "Wch27"]
+
+1.e4 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 a6 5.Bd3 Nc6 6.Nxc6 bxc6 7.O-O d5 8.Nd2 Nf6 9.b3 Bb4 10.Bb2 $1 a5 ( { The point is } 10...Bxd2 11.Qxd2 dxe4 12.Qg5 { [#] } ) 11.c3 Be7 12.c4 O-O 13.Qc2 h6 14.a3 Ba6 15.Rfe1 Qb6 16.exd5 cxd5 17.cxd5 Bxd3 18.Qxd3 Rfd8 19.Nc4 Qa6 20.Qf3 Rxd5 21.Rad1 Rf5 22.Qg3 Rg5 23.Qc7 Re8 24.Bxf6 gxf6 25.Rd7 Rc8 26.Qb7 Qxb7 27.Rxb7 Kf8 28.a4 Bb4 29.Re3 Rd8 30.g3 Rd1+ 31.Kg2 Rc5 32.Rf3 f5 $2 ( { Correct is } 32...Kg7 ) 33.g4 $1 { White grabs the chance. } 33...Rd4 34.gxf5 exf5 35.Rb8+ Ke7 36.Re3+ Kf6 37.Rb6+ Kg7 38.Rg3+ Kf8 39.Rb8+ Ke7 40.Re3+ Kf6 41.Rb6+ Kg7 42.Rg3+ Kf8 43.Rxh6 f4 44.Rgh3 $1 { White wants to conquer the overprotected \\P a5.   [#] } {[%csl Ga5]} 44...Kg7 ( { Boleslavsky regards } 44...Rg5+ 45.Kf3 Ke7 { as drawn, but } 46.R3h5 Rxh5 47.Rxh5 Rd3+ 48.Kg4 $1 Rxb3 49.Rb5 $1 { wins for White.   [#] } {[%cal Rh5b5]} ) 45.R6h5 $1 f3+ 46.Kg3 Rxh5 47.Rxh5 Rd3 48.Nxa5 Kg6 49.Rb5 Bxa5 50.Rxa5 Rxb3 51.Ra8 Ra3 52.a5 Kf5 53.a6 Kg6 54.a7 Kg7 55.h4 Kh7 56.h5 Kg7 57.h6+ Kh7 58.Kf4 { Black will lose both f-pawns. Spassky took the lead again. [#] } {[%csl Rf3,Rf7]} 1-0`)
+      await puppeteer.saveScreenshot(page, `${testName}-1.png`)
+      const annotationsButton = await puppeteer.getElement(page, 'Annotations')
+      await annotationsButton.click()
+      await page.waitForSelector('.turn-components')
+      await page.waitForSelector('.turn-option-button')
+      await puppeteer.saveScreenshot(page, `${testName}-2.png`)
+      await puppeteer.clickNthEditButton(page, '.turn-list', 0)
+      await puppeteer.saveScreenshot(page, `${testName}-3.png`)
+      await puppeteer.clickNthPosition(page, '.turn-components', 3)
+      await puppeteer.saveScreenshot(page, `${testName}-4.png`)
+      await page.waitForSelector('.alternative-moves-button')
+      const alternativeMovesButton = await puppeteer.getElement(page, '.alternative-moves-button')
+      await alternativeMovesButton.click()
+      await page.waitForSelector('.alternative-moves-chessboard')
+      await puppeteer.saveScreenshot(page, `${testName}-5.png`)
+      await page.evaluate((from, to) => {
+        const hitArea = document.querySelector('.alternative-moves-hitarea')
+        hitArea.onmousedown({
+          target: hitArea.querySelector(`.coordinate-${from}`)
+        })
+        hitArea.onmouseup({
+          target: hitArea.querySelector(`.coordinate-${to}`)
+        })
+      }, 'd2', 'd4')
+      await page.waitForSelector('.insert-alternative-moves-button')
+      await puppeteer.saveScreenshot(page, `${testName}-6.png`)
+      const insertButton = await puppeteer.getElement(page, '.insert-alternative-moves-button')
+      await insertButton.click()
+      await puppeteer.saveScreenshot(page, `${testName}-7.png`)
+      await page.waitForSelector('.add-turn-button')
+      const turnContainer = await puppeteer.getElement(page, '.timeline2')
+      const addTurnButton = await puppeteer.getElement(turnContainer, '.add-turn-button')
+      await addTurnButton.click()
+      await page.waitForSelector('.alternative-moves-chessboard')
+      await puppeteer.saveScreenshot(page, `${testName}-8.png`)
+      await page.evaluate((from, to) => {
+        const hitArea = document.querySelector('.alternative-moves-hitarea')
+        hitArea.onmousedown({
+          target: hitArea.querySelector(`.coordinate-${from}`)
+        })
+        hitArea.onmouseup({
+          target: hitArea.querySelector(`.coordinate-${to}`)
+        })
+      }, 'd7', 'd5')
+      await puppeteer.saveScreenshot(page, `${testName}-9.png`)
+      const updateAlternativeTurns = await puppeteer.getElement(page, '.update-alternative-moves-button')
+      await updateAlternativeTurns.click()
+      await puppeteer.saveScreenshot(page, `${testName}-10.png`)
+      const pgnButton = await puppeteer.getElement(page, 'PGN')
+      await pgnButton.click()
+      await page.waitForSelector('.pgn')
+      await puppeteer.saveScreenshot(page, `${testName}-11.png`)
+      const content = await puppeteer.evaluate(page, () => document.querySelector('.pgn').innerHTML.trim())
+      const moves = content.substring(content.indexOf(']\n\n') + 3)
+      assert.strictEqual(true, moves.startsWith('1.(1.Pdd4 1...Pd5) e4'))
       await page.close()
       await page.browser.close()
     })
