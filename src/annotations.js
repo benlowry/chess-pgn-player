@@ -808,8 +808,8 @@
       previousPieces: JSON.parse(JSON.stringify(pieces)),
       piece: turnContainer.selectedPiece
     }
-    const turnment = parser.calculatePieceMovement(alternativeTurn.piece, alternativeTurn, alternativeTurn.pieces)
-    if (!turnment) {
+    const movement = parser.calculatePieceMovement(alternativeTurn.piece, alternativeTurn, alternativeTurn.pieces)
+    if (!movement) {
       return
     }
     for (const piece of alternativeTurn.pieces) {
