@@ -204,28 +204,34 @@
         parent.appendChild(li)
         li = turn.turnContainer = parent.lastElementChild
       }
-      resetTurnContainerButtons(li)
       if (turn.color === 'w') {
         li.classList.add('white-turn-link')
+        li.classList.remove('black-turn-link')
       } else {
         li.classList.add('black-turn-link')
+        li.classList.remove('white-turn-link')
       }
+      const addTurnButton = li.querySelector('.add-turn-button')
       const deleteLastTurnButton = li.querySelector('.delete-last-turn-button')
       if (turn === turns[turns.length - 1]) {
         deleteLastTurnButton.onclick = deleteLastTurn
+        addTurnButton.onclick = addTurn
       } else {
         deleteLastTurnButton.style.display = 'none'
+        addTurnButton.style.display = 'none'
       }
+      resetTurnContainerButtons(li)
       if (!turn.siblings || !turn.siblings.length) {
         continue
       }
       for (const sibling of turn.siblings) {
         timeline++
         let ul = createFromTemplate('#sibling-components-template')
+        ul.pgn = sibling.join(' ')
         li.appendChild(ul)
         ul = li.lastElementChild
         ul.classList.add(`timeline${timeline}`)
-        timeline = renderTurns(sibling, ul)
+        renderTurns(sibling, ul)
       }
     }
     return timeline
@@ -251,15 +257,15 @@
         if (renderingAnnotation) {
           if (item !== '{' && item !== '}') {
             li.onmousedown = selectAnnotationSequencePosition
+            li.mouseEnabled = true
           } else {
-            li.style.pointerEvents = 'none'
             li.mouseEnabled = false
           }
         } else {
           li.onmousedown = selectTurnComponentsPosition
+          li.mouseEnabled = true
         }
       } else {
-        li.style.pointerEvents = 'none'
         li.mouseEnabled = false
       }
       container.appendChild(li)
@@ -680,30 +686,57 @@
     return newForm
   }
 
-  function makeAlternativeTurnsForm (turnContainer) {
+  function makeAlternativeTurnsForm (turnContainer, templateid) {
     const turn = findTurn(turnContainer)
-    const newForm = createFromTemplate('#new-alternative-moves-form')
+    const newForm = createFromTemplate(templateid || '#new-alternative-moves-form')
     const chessBoard = newForm.querySelector('.chessboard')
-    const previousTurnState = {
-      pieces: turn.previousPieces
+    const previousTurnState = {}
+    if (turnContainer.alternativeTurns) {
+      previousTurnState.pieces = turnContainer.alternativeTurns[turnContainer.alternativeTurns.length - 1].pieces
+    } else {
+      previousTurnState.pieces = turn.previousPieces
     }
     const hitArea = chessBoard.parentNode.querySelector('.alternative-moves-hitarea')
-    hitArea.onmousedown = selectAlternativePiece
-    hitArea.onmouseup = turnAlternativePiece
-    turnContainer.alternativeTurns = []
+    hitArea.onmousedown = selectPiece
+    hitArea.onmouseup = movePiece
+    turnContainer.alternativeTurns = turnContainer.alternativeTurns || []
     setupMiniChessBoard(chessBoard, hitArea, previousTurnState, true)
+    const pendingList = newForm.querySelector('.pending-turn-list')
+    if (turnContainer.alternativeTurns.length) {
+      for (const turn of turnContainer.alternativeTurns) {
+        const listItem = document.createElement('li')
+        const dots = turn.color === 'w' ? '.' : '...'
+        if (!turn.piece) {
+          for (const piece of turn.pieces) {
+            if (piece.coordinateBefore) {
+              turn.piece = piece
+              break
+            }
+          }
+        }
+        listItem.innerHTML = `<span>${turn.moveNumber}${dots} ${turn.type} <i>${turn.piece.coordinateBefore}</i> to <i>${turn.to}</i></span>`
+        pendingList.insertBefore(listItem, pendingList.lastElementChild)
+      }
+      pendingList.style.display = ''
+    } else {
+      pendingList.style.display = 'none'
+    }
     const insertButton = newForm.querySelector('.insert-alternative-moves-button')
-    insertButton.onclick = insertAlternativeTurn
+    if (insertButton) {
+      insertButton.onclick = insertAlternativeTurns
+    }
+    const updateButton = newForm.querySelector('.update-alternative-moves-button')
+    if (updateButton) {
+      updateButton.onclick = updateAlternativeTurns
+    }
     const cancelButton = newForm.querySelector('.cancel-button')
     cancelButton.formCreator = makeInsertionTypeSelector
     cancelButton.onclick = switchForm
-    const pendingList = newForm.querySelector('.pending-list')
-    pendingList.style.display = 'none'
     pendingList.querySelector('.cancel-button').onclick = undoLastPendingTurn
     return newForm
   }
 
-  function selectAlternativePiece (event) {
+  function selectPiece (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -738,7 +771,7 @@
     turnContainer.selectedPiece = selectedPiece
   }
 
-  function turnAlternativePiece (event) {
+  function movePiece (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -770,7 +803,7 @@
       color,
       moveNumber,
       to: coordinate,
-      from: turnContainer.selectedPiece.coordinate,
+      sequence: [`${moveNumber}${dots}`, `${turnContainer.selectedPiece.type}${coordinate}`],
       pieces: JSON.parse(JSON.stringify(pieces)),
       previousPieces: JSON.parse(JSON.stringify(pieces)),
       piece: turnContainer.selectedPiece
@@ -789,7 +822,6 @@
     // todo:
     // 1) captured pieces do not process
     // 2) promoted pieces do not process
-    // 4) cannot add alternative turns to new alternative turns
     // 5) inserted text is excesssively specific (1. Pee4 vs 1. e2 with type and column inferred)
     // 7) cannot "edit" existing alternative turns ie delete last or add next turn
     const chessBoard = turnContainer.querySelector('.alternative-moves-chessboard')
@@ -811,13 +843,17 @@
     const turnContainer = findTurnContainer(event.target)
     const lastTurn = turnContainer.alternativeTurns.pop()
     const chessBoard = turnContainer.querySelector('.alternative-moves-chessboard')
-    const cellBefore = chessBoard.querySelector(`.coordinate-${lastTurn.to}`)
-    const cellAfter = chessBoard.querySelector(`.coordinate-${lastTurn.from}`)
-    cellAfter.style.backgroundImage = cellBefore.style.backgroundImage
-    cellBefore.style.backgroundImage = ''
-
+    for (const piece of lastTurn.pieces) {
+      if (!piece.coordinateBefore) {
+        continue
+      }
+      const cellBefore = chessBoard.querySelector(`.coordinate-${piece.coordinate}`)
+      const cellAfter = chessBoard.querySelector(`.coordinate-${piece.coordinateBefore}`)
+      cellAfter.style.backgroundImage = cellBefore.style.backgroundImage
+      cellBefore.style.backgroundImage = ''
+    }
     const pendingList = turnContainer.querySelector('.pending-turn-list')
-    pendingList.appendChild(pendingList.children[pendingList.children.length - 2])
+    pendingList.removeChild(pendingList.children[pendingList.children.length - 2])
     if (pendingList.children.length === 1) {
       pendingList.style.display = 'none'
     }
@@ -831,7 +867,7 @@
     return previousNumber + 1
   }
 
-  function insertAlternativeTurn (event) {
+  function insertAlternativeTurns (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
     }
@@ -839,6 +875,7 @@
     const turn = findTurn(turnContainer)
     const pendingList = turnContainer.querySelector('.pending-turn-list')
     const annotationParts = []
+    let lastMoveNumber
     for (const child of pendingList.children) {
       if (child.firstElementChild.tagName === 'BUTTON') {
         continue
@@ -853,11 +890,16 @@
       piece = piece[0]
       // TODO: this is a very verbose "1.Kde4" structure, it should be
       // possible to calculate the smallest unambiguous expression
-      annotationParts.push(`${moveNumber}${piece}${coordinateBefore}${coordinate}`)
+      if (moveNumber === lastMoveNumber || moveNumber === `${lastMoveNumber}..`) {
+        annotationParts.push(`${piece}${coordinateBefore}${coordinate}`)
+      } else {
+        annotationParts.push(`${moveNumber}${piece}${coordinateBefore}${coordinate}`)
+      }
+      lastMoveNumber = moveNumber
     }
-    const annotationText = `(${annotationParts.join(' ')})`
+    const moveData = parser.tokenizeLines(annotationParts.join(' '))
+    const sibling = parser.parseRecursively(moveData)
     const pieces = JSON.parse(JSON.stringify(turn.previousPieces))
-    const sibling = parser.parseTurn(annotationText.substring(1, annotationText.length - 1))
     for (const child of sibling) {
       child.parentTurn = turn
       parser.processTurn(child, sibling, pieces)
@@ -867,8 +909,79 @@
     const selectedPosition = turnContainer.querySelector('.selected-position')
     const expandedSequence = expandSequence(turn.sequence)
     const position = selectedPosition.position
-    expandedSequence.splice(position, 0, ' ', annotationText)
+    expandedSequence.splice(position, 0, ' ', `(${annotationParts.join(' ')})`)
     propogateChanges(turn, contractExpandedSequence(expandedSequence))
+    turnList.innerHTML = ''
+    renderTurns(window.pgn.turns, turnList)
+  }
+
+  function updateAlternativeTurns (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const turnContainer = findTurnContainer(event.target)
+    const turn = findTurn(turnContainer)
+    const pendingList = turnContainer.querySelector('.pending-turn-list')
+    const annotationParts = []
+    let lastMoveNumber
+    for (const child of pendingList.children) {
+      if (child.firstElementChild.tagName === 'BUTTON') {
+        continue
+      }
+      let moveNumber = child.innerHTML.substring('<span>'.length)
+      moveNumber = moveNumber.substring(0, moveNumber.indexOf(' '))
+      let coordinate = child.innerHTML.substring(child.innerHTML.lastIndexOf('<i>') + 3)
+      coordinate = coordinate.substring(0, coordinate.indexOf('<'))
+      let coordinateBefore = child.innerHTML.substring(child.innerHTML.indexOf('<i>') + 3)
+      coordinateBefore = coordinateBefore[0]
+      let piece = child.innerHTML.substring(child.innerHTML.indexOf(' ') + 1)
+      piece = piece[0]
+      // TODO: this is a very verbose "1.Kde4" structure, it should be
+      // possible to calculate the smallest unambiguous expression
+      if (moveNumber === lastMoveNumber || moveNumber === `${lastMoveNumber}..`) {
+        annotationParts.push(`${piece}${coordinateBefore}${coordinate}`)
+      } else {
+        annotationParts.push(`${moveNumber}${piece}${coordinateBefore}${coordinate}`)
+      }
+      lastMoveNumber = moveNumber
+    }
+    const moveData = parser.tokenizeLines(annotationParts.join(' '))
+    const newSibling = parser.parseRecursively(moveData)
+    turn.parentTurn.siblings = turn.parentTurn.siblings || []
+    let parentSibling, parentSiblingPGN
+    for (const i in turn.parentTurn.siblings) {
+      const sibling = turn.parentTurn.siblings[i]
+      if (sibling.indexOf(turn) > -1) {
+        parentSibling = sibling
+        const pgnParts = []
+        for (const child of sibling) {
+          pgnParts.push(child.sequence.join(' '))
+        }
+        parentSiblingPGN = '(' + parser.cleanSpacing(pgnParts.join(' ')) + ')'
+        break
+      }
+    }
+    while (parentSibling.length > newSibling.length) {
+      parentSibling.pop()
+    }
+    for (const i in newSibling) {
+      const newTurn = newSibling[i]
+      const oldTurn = parentSibling.length > i ? parentSibling[i] : null
+      if (oldTurn && oldTurn.to === newTurn.to && oldTurn.type === newTurn.type) {
+        continue
+      }
+      parentSibling[i] = newTurn
+    }
+    const oldSequence = []
+    for (const i in turn.parentTurn.sequence) {
+      if (turn.parentTurn.sequence[i] === parentSiblingPGN) {
+        oldSequence.push(`(${parser.cleanSpacing(annotationParts.join(' '))})`)
+      } else {
+        oldSequence.push(turn.parentTurn.sequence[i])
+      }
+    }
+    propogateChanges(turn.parentTurn, parser.tokenizeLine(parentSiblingPGN))
+    turnContainer.parentNode.removeChild(turnContainer)
     turnList.innerHTML = ''
     renderTurns(window.pgn.turns, turnList)
   }
@@ -1318,6 +1431,30 @@
     }
   }
 
+  function addTurn (event) {
+    if (event && event.preventDefault) {
+      event.preventDefault()
+    }
+    const turnContainer = findTurnContainer(event.target)
+    const turn = findTurn(turnContainer)
+    let turnArray
+    if (!turn.parentTurn) {
+      turnArray = window.pgn.turns
+    } else {
+      for (const sibling of turn.parentTurn.siblings) {
+        if (sibling.indexOf(turn) > -1) {
+          turnArray = sibling
+          break
+        }
+      }
+    }
+    turnContainer.alternativeTurns = turnArray
+    const newForm = makeAlternativeTurnsForm(turnContainer, '#edit-alternative-moves-form')
+    const turnForms = turnContainer.querySelector('.turn-forms')
+    turnForms.innerHTML = ''
+    turnForms.appendChild(newForm)
+  }
+
   function deleteLastTurn (event) {
     if (event && event.preventDefault) {
       event.preventDefault()
@@ -1332,11 +1469,9 @@
         if (index === -1) {
           continue
         }
-        // remove the turn from the sibling
         deletingTurn.parentTurn.siblings[i].splice(index, 1)
         break
       }
-      // update the parent sequence
       const newSequence = [].concat(deletingTurn.parentTurn.sequence)
       let siblingNumber = 0
       for (const j in newSequence) {
