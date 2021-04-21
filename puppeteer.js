@@ -43,7 +43,8 @@ async function createBrowser (preloadPGN) {
   if (process.env.CHROMIUM_EXECUTABLE) {
     launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
   }
-  const allDevices = require('puppeteer/lib/cjs/puppeteer/common/DeviceDescriptors.js')
+  const puppeteerModule = process.env.FIREFOX ? 'puppeteer-firefox' : 'puppeteer'
+  const allDevices = require(`${puppeteerModule}/lib/cjs/puppeteer/common/DeviceDescriptors.js`)
   const devices = [{
     name: 'Desktop',
     userAgent: 'Desktop browser',
@@ -61,7 +62,7 @@ async function createBrowser (preloadPGN) {
   allDevices.devicesMap['Pixel 2 XL'],
   allDevices.devicesMap['iPhone SE']
   ]
-  const puppeteer = require('puppeteer')
+  const puppeteer = require(puppeteerModule)
   const browser = await puppeteer.launch(launchOptions)
   const page = await browser.newPage()
   page.browser = browser
@@ -168,6 +169,7 @@ async function getElement (page, identifier) {
   if (identifier.startsWith('#')) {
     element = await page.$(identifier)
     if (element) {
+      await element.focus()
       return element
     }
     return null
@@ -175,6 +177,7 @@ async function getElement (page, identifier) {
   if (identifier.startsWith('.')) {
     element = await page.$(identifier)
     if (element) {
+      await element.focus()
       return element
     }
     return null
@@ -190,6 +193,7 @@ async function getElement (page, identifier) {
           if (href === identifier ||
             href.startsWith(`${identifier}?`) ||
             href.startsWith(`${identifier}&`)) {
+            await element.focus()
             return element
           }
         }
@@ -200,6 +204,7 @@ async function getElement (page, identifier) {
           if (href === identifier ||
             href.startsWith(`${identifier}?`) ||
             href.startsWith(`${identifier}&`)) {
+            await element.focus()
             return element
           }
         }
@@ -216,6 +221,7 @@ async function getElement (page, identifier) {
       const text = await getText(element)
       if (text) {
         if (text === identifier || text.indexOf(identifier) > -1) {
+          await element.focus()
           return element
         }
       }
