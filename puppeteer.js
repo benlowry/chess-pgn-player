@@ -42,6 +42,11 @@ async function createBrowser (preloadPGN) {
   }
   if (process.env.FIREFOX) {
     launchOptions.product = 'firefox'
+    if (process.env.SCREENSHOT_SCHEME === 'light') {
+      launchOptions.args.push('--disable-blink-features=MediaQueryPrefersColorScheme')
+    } else {
+      launchOptions.args.push('--force-dark-mode')
+    }
   }
   if (process.env.CHROMIUM_EXECUTABLE) {
     launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
@@ -81,7 +86,7 @@ async function createBrowser (preloadPGN) {
   } else {
     device = devices[0]
   }
-  if (process.env.SCREENSHOT_SCHEME) {
+  if (!process.env.FIREFOX && process.env.SCREENSHOT_SCHEME) {
     await page.emulateMediaFeatures([{
       name: 'prefers-color-scheme',
       value: process.env.SCREENSHOT_SCHEME
