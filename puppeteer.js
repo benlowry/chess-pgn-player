@@ -40,11 +40,13 @@ async function createBrowser (preloadPGN) {
     ],
     slowMo: 10
   }
+  if (process.env.FIREFOX) {
+    launchOptions.product = 'firefox'
+  }
   if (process.env.CHROMIUM_EXECUTABLE) {
     launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
   }
-  const puppeteerModule = process.env.FIREFOX ? 'puppeteer-firefox' : 'puppeteer'
-  const allDevices = require(`${puppeteerModule}/lib/cjs/puppeteer/common/DeviceDescriptors.js`)
+  const allDevices = require('puppeteer/lib/cjs/puppeteer/common/DeviceDescriptors.js')
   const devices = [{
     name: 'Desktop',
     userAgent: 'Desktop browser',
@@ -62,7 +64,7 @@ async function createBrowser (preloadPGN) {
   allDevices.devicesMap['Pixel 2 XL'],
   allDevices.devicesMap['iPhone SE']
   ]
-  const puppeteer = require(puppeteerModule)
+  const puppeteer = require('puppeteer')
   const browser = await puppeteer.launch(launchOptions)
   const page = await browser.newPage()
   page.browser = browser
