@@ -4,7 +4,7 @@
   "description": "",
   "main": "gruntfile.js",
   "scripts": {
-    "test": "mocha --timeout 90000 src/*.test.js"
+    "test": "mocha --timeout 1800000 src/*.test.js"
   },
   "author": "",
   "license": "ISC",

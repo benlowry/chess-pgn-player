@@ -1,4 +1,5 @@
 /* eslint-env mocha */
+const fs = require('fs')
 const path = require('path')
 const util = require('util')
 const wait = util.promisify((amount, callback) => {
@@ -7,6 +8,15 @@ const wait = util.promisify((amount, callback) => {
     amount = null
   }
   return setTimeout(callback, amount || 1)
+})
+
+after(async () => {
+  try {
+    await saveTilesheet(process.env.SCREENSHOT_PATH)
+  } catch (error) {
+    console.log('an error occurred generating tilesheet', process.env.SCREENSHOT_PATH, error)
+    // throw error
+  }
 })
 
 module.exports = {
@@ -19,40 +29,17 @@ module.exports = {
   getTags,
   getText,
   saveScreenshot,
+  saveTilesheet,
   wait
 }
 
-function close (page) {
-  page.close()
-  page.browser.close()
+async function close (page) {
+  await page.close()
+  await page.browser.close()
 }
 
-async function createBrowser (preloadPGN) {
-  const launchOptions = {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--window-size=1920,1080',
-      '--incognito',
-      '--disable-dev-shm-usage',
-      '--disable-features=site-per-process'
-    ],
-    slowMo: 10
-  }
-  if (process.env.FIREFOX) {
-    launchOptions.product = 'firefox'
-    if (process.env.SCREENSHOT_SCHEME === 'light') {
-      launchOptions.args.push('--disable-blink-features=MediaQueryPrefersColorScheme')
-    } else {
-      launchOptions.args.push('--force-dark-mode')
-    }
-  }
-  if (process.env.CHROMIUM_EXECUTABLE) {
-    launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
-  }
-  const allDevices = require('puppeteer/lib/cjs/puppeteer/common/DeviceDescriptors.js')
-  const devices = [{
+const allDevices = require('puppeteer/lib/cjs/puppeteer/common/DeviceDescriptors.js')
+const devices = [{
     name: 'Desktop',
     userAgent: 'Desktop browser',
     viewport: {
@@ -68,14 +55,25 @@ async function createBrowser (preloadPGN) {
   allDevices.devicesMap['iPad Mini'],
   allDevices.devicesMap['Pixel 2 XL'],
   allDevices.devicesMap['iPhone SE']
-  ]
-  const puppeteer = require('puppeteer')
-  const browser = await puppeteer.launch(launchOptions)
+]
+let device
+
+async function createBrowser (preloadPGN) {
+  let browser
+  while (true) {
+    try {
+      browser = await launchBrowser()
+    } catch (error) {
+      console.log('coudl not launch browser', error)
+    }
+    if (browser) {
+      break
+    }
+  }
   const page = await browser.newPage()
   page.browser = browser
   await page.setDefaultTimeout(3600000)
   await page.setDefaultNavigationTimeout(3600000)
-  let device
   if (process.env.SCREENSHOT_DEVICE) {
     for (const deviceInfo of devices) {
       if (deviceInfo.name.toLowerCase() === process.env.SCREENSHOT_DEVICE.toLowerCase()) {
@@ -131,6 +129,177 @@ async function saveScreenshot (page, filename) {
   })
 }
 
+/**
+ * Creates a tilesheet for each test's image sequences
+ * @param {*} folderPath 
+ */
+async function saveTilesheet (folderPath) {
+  let width = 256
+  let height = Math.floor((device.viewport.height  / device.viewport.width) * 256)
+  const listItems = {}
+  const files = fs.readdirSync(folderPath)
+  // identify each group of images and prepare them for displaying in-browser
+  let columns = 0
+  for (const file of files) {
+    if (!file.endsWith('.png')) {
+      continue
+    }
+    if (file.startsWith('tilesheet')) {
+      continue
+    }
+    let fileNameParts = file.split('-')
+    const number = parseInt(fileNameParts.pop().split('.')[0])
+    if (number > columns) {
+      columns = number
+    }
+    let sequence
+    if (file.endsWith(`1-${number}.png`)) {
+      sequence = 1
+    } else if (file.endsWith(`2-${number}.png`)) {
+      sequence = 2
+    } else if (file.endsWith(`3-${number}.png`)) {
+      sequence = 3
+    } else if (file.endsWith(`4-${number}.png`)) {
+      sequence = 4
+    } else {
+      sequence = 0
+    }
+    if (sequence > 0) {
+      fileNameParts = fileNameParts.slice(0, fileNameParts.length - 1).join('-')
+    } else {
+      fileNameParts = fileNameParts.join('-')
+    }
+    listItems[fileNameParts] = listItems[fileNameParts] || {}
+    listItems[fileNameParts][sequence] = listItems[fileNameParts][sequence] || []
+    const filePath = path.join(folderPath, file)
+    const base64 = fs.readFileSync(filePath).toString('base64')
+    listItems[fileNameParts][sequence].push(`<li style="display: block; float: left; list-style-type: none; padding: 0; margin: 0; width: ${width}px; height: ${height}px; background: url(data:image/png;base64,${base64}) no-repeat; background-size: cover" /></li>`)
+  }
+  // create a tilesheet for each group
+  let totalHeight = 0
+  let maximumWidth = 0
+  for (const fileNameParts in listItems) {
+    console.log('fileNameParts', fileNameParts)
+    let browser
+    while (true) {
+      try {
+        browser = await launchBrowser()
+      } catch (error) {
+        console.log('could not launch browser', error)
+      }
+      if (browser) {
+        break
+      }
+    }
+    const page = await browser.newPage()
+    page.browser = browser
+    page.on('console', (msg) => {
+      if (msg && msg.text) {
+        console.error('puppeteer page error', msg.text())
+      } else {
+        console.error('puppeteer page error', msg)
+      }
+    })
+    const sequences = []
+    for (const sequence in listItems[fileNameParts]) {
+      sequences.push(listItems[fileNameParts][sequence])
+    }
+    await page.evaluate((sequences, height) => {
+      document.body.style.padding = 0
+      document.body.style.margin = 0
+      for (const sequence of sequences) {
+        document.body.innerHTML += `<div style="width: 100%; height: ${height}px; overflow: hidden"><ul style="list-style-type: none; padding: 0; margin: 0; width: 100%; height: ${height}px">${sequence.join('')}</ul></div>`
+      }
+    }, sequences, height)
+    const pageWidth = width * columns
+    const pageHeight = sequences.length * height
+    await page.setViewport({ width: pageWidth, height: pageHeight })
+    const tilesheetFile = path.join(folderPath, `tilesheet-${fileNameParts.join ? fileNameParts.join('-') : fileNameParts}.png`)
+    await page.screenshot({ 
+      path: tilesheetFile, 
+      type: 'png' 
+    })
+    try {
+      await close(page)
+    } catch (error) {
+      console.log('could not close page properly')
+    }
+    totalHeight += pageHeight
+    if (pageWidth > maximumWidth) {
+      maximumWidth = pageWidth
+    }
+  }
+  // create tilesheet of tilesheets
+  const tilesheets = []
+  for (const fileNameParts in listItems) {
+    const tilesheetFile = path.join(folderPath, `tilesheet-${fileNameParts}.png`)
+    const base64 = fs.readFileSync(tilesheetFile).toString('base64')
+    const sequences = Object.keys(listItems[fileNameParts])
+    tilesheets.push(`<li style="display: block; list-style-type: none; padding: 0; margin: 0; width: 100%; height: ${height * sequences.length}px; background: url(data:image/png;base64,${base64}) no-repeat; background-size: cover" /></li>`)
+  }
+  let browser
+  while (true) {
+    try {
+      browser = await launchBrowser()
+    } catch (error) {
+      console.log('could not launch browser', error)
+    }
+    if (browser) {
+      break
+    }
+  }
+  const page = await browser.newPage()
+  page.browser = browser
+  page.on('console', (msg) => {
+    if (msg && msg.text) {
+      console.error('puppeteer page error', msg.text())
+    } else {
+      console.error('puppeteer page error', msg)
+    }
+  })
+  await page.evaluate((listItems, totalHeight) => {
+    document.body.style.padding = 0
+    document.body.style.margin = 0
+    document.body.innerHTML = `<ul style="list-style-type: none; padding: 0; margin: 0; width: 100%; height: ${totalHeight}px">${listItems}</ul>`
+  }, tilesheets.join(''), totalHeight)
+  await page.setViewport({ width: maximumWidth, height: totalHeight })
+  const tilesheetFile = path.join(folderPath, 'tilesheet.png')
+  await page.screenshot({ path: tilesheetFile, type: 'png' })
+  try {
+    await close(page)
+  } catch (error) {
+    console.log('could not close page properly')
+  }
+}
+
+async function launchBrowser () {
+  const launchOptions = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--window-size=1920,1080',
+      '--incognito',
+      '--disable-dev-shm-usage',
+      '--disable-features=site-per-process'
+    ],
+    slowMo: 10
+  }
+  if (process.env.FIREFOX) {
+    launchOptions.product = 'firefox'
+    if (process.env.SCREENSHOT_SCHEME === 'light') {
+      launchOptions.args.push('--disable-blink-features=MediaQueryPrefersColorScheme')
+    } else {
+      launchOptions.args.push('--force-dark-mode')
+    }
+  }
+  if (process.env.CHROMIUM_EXECUTABLE) {
+    launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE
+  }
+  const puppeteer = require('puppeteer')
+  return puppeteer.launch(launchOptions)
+}
+
 async function clickNthEditButton (page, identifier, nth, child, grandChild, greatGrandChild) {
   return page.evaluate((identifier, nth, child, grandChild, greatGrandChild) => {
     let list = document.querySelector(identifier)
@@ -143,7 +312,6 @@ async function clickNthEditButton (page, identifier, nth, child, grandChild, gre
         }
       }
     }
-
     const buttons = list.querySelectorAll('.turn-option-button')
     buttons[nth].onclick({
       target: buttons[nth]
