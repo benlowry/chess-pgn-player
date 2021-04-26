@@ -40,10 +40,14 @@ window.onload = function () {
   ]
   const urlParams = new URLSearchParams(window.location.search)
   window.themeName = window.localStorage.getItem('theme') || urlParams.get('theme') || themes[0]
-  const link = document.createElement('link')
-  link.href = `themes/${window.themeName}/theme.css`
-  link.rel = 'stylesheet'
-  document.head.appendChild(link)
+  const themeCSS = document.createElement('link')
+  themeCSS.href = `themes/${window.themeName}/theme.css`
+  themeCSS.rel = 'stylesheet'
+  document.head.insertBefore(themeCSS, document.head.firstChild)
+  const playerCSS = document.createElement('link')
+  playerCSS.href = 'player.css'
+  playerCSS.rel = 'stylesheet'
+  document.head.appendChild(playerCSS)
   // shared method for loading PGN file/text
   window.loadPGNFile = (pgnFileData) => {
     window.turn = -1
